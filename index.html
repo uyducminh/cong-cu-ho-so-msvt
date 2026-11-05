@@ -88,6 +88,7 @@ ol.guide li{margin:0 0 6px}
 </main>
 <div id="toast"></div>
 <input type="file" id="fileXlsx" accept=".xlsx,.xls" class="hide">
+<input type="file" id="fileZip" accept=".zip" class="hide">
 <input type="file" id="fileJson" accept=".json" class="hide">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -357,7 +358,15 @@ function parseWorkbook(wb) {
 function importRegion(data) {
   const id = slug(data.info.agriId || data.info.maAgribase || data.info.ten || uid());
   const old = S.regions[id];
-  if (old) { for (const [k, v] of Object.entries(old.info)) if (!data.info[k] && v) data.info[k] = v; }
+  if (old) {
+    for (const [k, v] of Object.entries(old.info)) if (!data.info[k] && v) data.info[k] = v;
+    for (const k of ["q", "qLang", "qExport", "nkLink"]) if (old[k] != null && data[k] == null) data[k] = old[k];
+    if (old.qPhotos) {
+      data.qPhotos = {};
+      for (const [k, v] of Object.entries(old.qPhotos)) if (!k.startsWith("lot_")) data.qPhotos[k] = v;
+      for (const ol of old.lots || []) { const v = old.qPhotos[lotKey(ol)]; if (!v || !v.length) continue; const nl = data.lots.find(l => norm(l.ma) === norm(ol.ma) && norm(l.chu) === norm(ol.chu)); if (nl) data.qPhotos[lotKey(nl)] = v; }
+    }
+  }
   data.id = id;
   S.regions[id] = data;
   persist("regions", id);
@@ -374,6 +383,122 @@ $("#fileXlsx").addEventListener("change", async ev => {
     toast(`Đã nhập ${d.info.ten || "vùng trồng"}: ${d.farmers.length} hộ, ${d.lots.length} lô`);
     render();
   } catch (e) { alertBox(e.message); }
+});
+/* ============================================================ import a full dossier package (.zip: Bộ hồ sơ MVT .docx, tờ khai từng hộ, ảnh địa chính từng lô) */
+const decZipName = n => String(n).replace(/#U([0-9a-fA-F]{4})/g, (_, x) => String.fromCharCode(parseInt(x, 16))).normalize("NFC");
+const W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+async function readDocx(buf) {
+  const z = await JSZip.loadAsync(buf); const f = z.file("word/document.xml"); if (!f) return { lines: [], tables: [] };
+  const doc = new DOMParser().parseFromString(await f.async("string"), "application/xml");
+  const pText = p => [...p.getElementsByTagNameNS(W_NS, "t")].map(t => t.textContent).join("");
+  const kids = (el, name) => [...el.childNodes].filter(n => n.localName === name);
+  const lines = [...doc.getElementsByTagNameNS(W_NS, "p")].map(pText).map(s => s.replace(/\s+/g, " ").trim()).filter(Boolean);
+  const tables = [...doc.getElementsByTagNameNS(W_NS, "tbl")].map(t => kids(t, "tr").map(tr => kids(tr, "tc").map(tc => [...tc.getElementsByTagNameNS(W_NS, "p")].map(pText).join(" ").replace(/\s+/g, " ").trim())));
+  return { lines, tables };
+}
+const realVal = v => { v = String(v || "").trim(); return /^[.…\s_-]*$/.test(v) ? "" : v; };
+function lineVal(lines, re, after) {
+  for (let i = 0; i < lines.length; i++) { const m = lines[i].match(re); if (m) { const v = realVal(after ? lines[i + 1] : m[1]); if (v) return v; } }
+  return "";
+}
+// find a table whose header row holds all the given words; returns rows as objects keyed by normalized header
+function findTables(tables, words) {
+  const out = [];
+  for (const t of tables) {
+    const hi = t.findIndex(r => words.every(w => r.some(c => norm(c).includes(norm(w))))); if (hi < 0) continue;
+    const hd = t[hi].map(norm);
+    out.push(t.slice(hi + 1).map(r => { const o = {}; hd.forEach((k, i) => o[k] = (r[i] || "").trim()); return o; }));
+  }
+  return out;
+}
+const col = (o, ...ks) => { for (const k of ks) { const e = Object.keys(o).find(x => x.includes(norm(k))); if (e && o[e]) return o[e]; } return ""; };
+async function parseDossierZip(file) {
+  const zip = await JSZip.loadAsync(await file.arrayBuffer());
+  const ents = Object.values(zip.files).filter(e => !e.dir && !/(^|\/)(__MACOSX|\.)/.test(e.name)).map(e => ({ e, name: decZipName(e.name).split("/").pop() }));
+  const docs = ents.filter(x => /\.docx$/i.test(x.name)), imgs = ents.filter(x => /\.(jpe?g|png|webp)$/i.test(x.name));
+  if (!docs.length) throw new Error("File zip không có file Word (.docx) hồ sơ.");
+  const main = docs.find(x => /bo ho so/.test(norm(x.name))) || docs.sort((a, b) => (b.e._data?.uncompressedSize || 0) - (a.e._data?.uncompressedSize || 0))[0];
+  const M = await readDocx(await main.e.async("arraybuffer"));
+  const L = M.lines;
+  const diaChi = lineVal(L, /Địa chỉ vùng trồng/i, true) || lineVal(L, /Địa chỉ vùng trồng\s*:\s*(.+)/i);
+  const parts = diaChi.split(",").map(s => s.trim());
+  const info = {
+    ten: lineVal(L, /Tên vùng trồng đề nghị cấp mã số\s*:\s*(.*)/i) || lineVal(L, /Tên vùng trồng\s*:\s*(.*)/i),
+    donVi: lineVal(L, /Tên tổ chức đề nghị cấp mã số\s*:\s*(.*)/i) || lineVal(L, /Tên tổ chức\s*:\s*(.*)/i),
+    mst: lineVal(L, /mã số thuế[^:]*:\s*(.*)/i),
+    daiDien: lineVal(L, /^-?\s*Người đại diện\s*:\s*(.*)/i),
+    sdtDaiDien: (lineVal(L, /Điện thoại\s*:\s*([+\d][\d\s.]{7,})/i) || "").replace(/\s+/g, ""),
+    email: lineVal(L, /Email\s*:\s*(\S+@\S+)/i),
+    diaChi, xa: parts.find(p => /^(xã|phường|thị trấn)\s/i.test(p)) || "", tinh: parts.find(p => /^(tỉnh|thành phố)\s/i.test(p)) || "",
+    cayTrong: lineVal(L, /Tên cây trồng\s*:\s*(.*)/i), giong: lineVal(L, /Tên giống cây trồng\s*:\s*(.*)/i),
+    tieuChuan: /vietgap/i.test(lineVal(L, /Quy trình sản xuất đang áp dụng[^:]*:\s*(.*)/i)) ? "VietGAP" : "",
+    thiTruong: (m => m ? "Xuất khẩu " + m.toLowerCase().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ") : "")(lineVal(L, /Thị trường đăng ký (?:xuất khẩu|mã số vùng trồng)\s*:\s*([^;]+)/i)),
+    vuNam: "1",
+  };
+  const slTong = num(String(lineVal(L, /Tổng sản lượng dự kiến[^:]*:\s*([\d.,]+)/i)).replace(",", "."));
+  // lots: the land-parcel table with GPS (the copy with the most sheet/plot numbers filled)
+  const lotTabs = findTables(M.tables, ["GPS", "Số tờ"]).map(rows => rows.filter(o => col(o, "Họ tên") && !/^tổng/i.test(col(o, "Họ tên"))));
+  if (!lotTabs.length) throw new Error("Không tìm thấy bảng danh sách thửa đất (có cột GPS, Số tờ) trong " + main.name);
+  const lotRows = lotTabs.sort((a, b) => b.filter(o => col(o, "Số thửa") || col(o, "Số tờ")).length - a.filter(o => col(o, "Số thửa") || col(o, "Số tờ")).length)[0];
+  const hhTab = findTables(M.tables, ["Số cây", "Giống"])[0] || [];
+  const hh = new Map(hhTab.filter(o => col(o, "Họ tên", "Tên hộ")).map(o => [norm(col(o, "CCCD", "định danh")) || norm(col(o, "Họ tên", "Tên hộ")), o]));
+  const birth = new Map(); for (const t of findTables(M.tables, ["Ngày sinh"])) for (const o of t) { const c = col(o, "định danh", "CCCD"); if (c) birth.set(c, col(o, "Ngày sinh")); }
+  // per-household declarations: CCCD issue date/place, permanent address
+  const decl = new Map();
+  for (const d of docs.filter(x => x !== main && /to khai|xac nhan tham gia/.test(norm(x.name)))) {
+    try {
+      const { lines } = await readDocx(await d.e.async("arraybuffer"));
+      const m = lines.join("\n").match(/Số CCCD\s*:\s*(\d{9,12})(?:\s*cấp ngày\s*([\d/.-]+))?(?:\s*tại\s*([^\n]+))?/i); if (!m) continue;
+      decl.set(m[1], { ngayCap: m[2] || "", noiCap: (m[3] || "").trim(), diaChi: lineVal(lines, /Địa chỉ thường trú\s*:\s*(.*)/i), sdt: lineVal(lines, /^Điện thoại\s*:\s*(0\d{8,10})/i) });
+    } catch (e) { console.warn(d.name, e); }
+  }
+  // cadastral / satellite images: "... <Họ tên> - <mã lô>.jpg"
+  const pics = imgs.map(x => { const b = x.name.replace(/\.[^.]+$/, ""); const m = b.match(/^(?:\d+\.\s*)?(?:Ảnh\s+(?:địa chính|vệ tinh|lô)\s+)?(.+?)\s+-\s+([A-Za-z]{1,4}[\w.-]*)$/i); return m ? { ...x, who: norm(m[1]), code: m[2].trim(), used: false } : { ...x, who: "", code: "", used: false }; });
+  const farmers = [], fBy = new Map(), lots = [];
+  for (const o of lotRows) {
+    const ten = col(o, "Họ tên"), cccd = col(o, "CCCD").replace(/\D/g, ""), key = cccd || norm(ten);
+    if (!fBy.has(key)) {
+      const d = decl.get(cccd) || {};
+      const f = { id: uid(), ten, sdt: col(o, "điện thoại") || d.sdt || "", gioiTinh: "", ngaySinh: birth.get(cccd) || col(hh.get(cccd) || {}, "Ngày sinh"), cccd, ngayCap: d.ngayCap || "", noiCap: d.noiCap || "", danToc: "", diaChi: d.diaChi || "" };
+      fBy.set(key, f); farmers.push(f);
+    }
+    const f = fBy.get(key), to = col(o, "Số tờ"), thua = col(o, "Số thửa");
+    let ma = to && thua ? `DC${to}-${thua}` : to ? `DC${to}` : "";
+    let pic = pics.find(p => !p.used && p.who === norm(ten) && ma && norm(p.code) === norm(ma));
+    if (!pic && !ma) pic = pics.find(p => !p.used && p.who === norm(ten) && !lotRows.some(r => norm(col(r, "Họ tên")) === p.who && col(r, "Số tờ") && norm(p.code).startsWith(norm("DC" + col(r, "Số tờ")))));
+    if (pic) { pic.used = true; if (!ma) ma = pic.code; }
+    lots.push({ id: uid(), ma: ma || `LO${lots.length + 1}`, sdt: f.sdt, chu: ten, dienTich: num(String(col(o, "Diện tích")).replace(",", ".")), giong: "", slDk: 0, slTt: 0, soCay: 0, namTrong: "",
+      toaDo: col(o, "GPS").replace(/\s+/g, ""), diaChiDC: "", to, thua, hinhThuc: "", xen: "", tyLeXen: "", _key: key, _pic: pic || null });
+  }
+  // household totals (trees, variety, planting year) spread over the household's lots by area
+  for (const [key, f] of fBy) {
+    const o = hh.get(f.cccd) || hh.get(norm(f.ten)); if (!o) continue;
+    const mine = lots.filter(l => l._key === key), a = mine.reduce((s, l) => s + l.dienTich, 0) || 1, trees = num(col(o, "Số cây"));
+    let left = trees; mine.forEach((l, i) => { const t = i === mine.length - 1 ? left : Math.round(trees * l.dienTich / a); left -= t; l.soCay = t; l.giong = col(o, "Giống"); l.namTrong = col(o, "Tuổi cây", "Năm trồng"); });
+  }
+  if (slTong) { const a = lots.reduce((s, l) => s + l.dienTich, 0) || 1; lots.forEach(l => l.slDk = Math.round(slTong * l.dienTich / a * 10) / 10); }
+  const extra = pics.filter(p => !p.used);
+  return { data: { info, farmers, lots: lots.map(({ _key, _pic, ...l }) => l) }, lotPics: lots.map(l => l._pic), extra, main: main.name, nDecl: decl.size };
+}
+async function importDossierZip(file) {
+  toast("Đang đọc bộ hồ sơ…");
+  const res = await parseDossierZip(file);
+  const id = importRegion(res.data); const r = S.regions[id];
+  let n = 0;
+  for (let i = 0; i < r.lots.length; i++) {
+    const p = res.lotPics[i]; if (!p) continue; const l = r.lots[i];
+    const blob = await p.e.async("blob"); const f = new File([blob], p.name, { type: /png$/i.test(p.name) ? "image/png" : "image/jpeg" });
+    const k = lotKey(l); if (photosOf(r, k).length) continue;
+    await addPhotos(r, k, [f], true); const ph = photosOf(r, k); if (ph.length) { ph[ph.length - 1].cap = `Ảnh địa chính lô ${l.ma} – ${l.chu}`; n++; }
+  }
+  persist("regions", id);
+  const miss = r.lots.filter(l => !photosOf(r, lotKey(l)).length).length;
+  toast(`Đã nhập ${r.info.ten}: ${r.farmers.length} hộ, ${r.lots.length} lô, ${n} ảnh địa chính${miss ? ` (${miss} lô chưa có ảnh)` : ""}${res.extra.length ? `; ${res.extra.length} ảnh không nhận ra lô` : ""}. Lấy thông tin từ: ${res.main}${res.nDecl ? ` và ${res.nDecl} tờ khai hộ` : ""}.`);
+  render();
+}
+$("#fileZip").addEventListener("change", async ev => {
+  const f = ev.target.files[0]; ev.target.value = ""; if (!f) return;
+  try { await importDossierZip(f); } catch (e) { console.error(e); alertBox("Không đọc được bộ hồ sơ: " + e.message); }
 });
 function alertBox(t) { toast(t); }
 function ask(msg) {
@@ -1349,7 +1474,7 @@ function qrCanvas(text, px = 8) {
   for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (q.isDark(i, j)) x.fillRect((j + m) * px, (i + m) * px, px, px);
   return c;
 }
-const lotKey = l => "lot_" + norm(l.ma || l.k).replace(/[^a-z0-9]+/g, "");
+const lotKey = l => "lot_" + String(l.id || norm(l.ma || l.k)).replace(/[^A-Za-z0-9]+/g, "_");
 const lotKeys = r => Object.keys(r.qPhotos || {}).concat(Object.keys(LOCAL_PH[r.id] || {})).filter(k => k.startsWith("lot_"));
 // one upload for many lots: the file name must contain the lot code (e.g. DC108-347.jpg)
 async function addLotPhotosByName(r, lots, files) {
@@ -1574,7 +1699,9 @@ function renderVung() {
   const top = h("div", { class: "card" }, h("h2", {}, "Nhập dữ liệu vùng trồng"),
     h("p", { class: "muted" }, "Chọn file Excel xuất từ Agribase (3 sheet: Vùng trồng, Nông hộ, Lô đất). Nhập lại cùng vùng sẽ cập nhật hộ và lô, giữ thông tin bạn đã bổ sung."),
     h("div", { class: "row" }, h("button", { class: "btn pri", onclick: () => $("#fileXlsx").click() }, "Nhập file vùng trồng (.xlsx)"),
-      h("button", { class: "btn", onclick: downloadTemplate }, "Tải file mẫu nhập liệu")));
+      h("button", { class: "btn pri", onclick: () => $("#fileZip").click() }, "Nhập bộ hồ sơ MVT (.zip)"),
+      h("button", { class: "btn", onclick: downloadTemplate }, "Tải file mẫu nhập liệu")),
+    h("p", { class: "muted", style: "font-size:12px" }, "Bộ hồ sơ .zip gồm file Word “Bộ hồ sơ MVT” (đơn đề nghị, danh sách hộ, danh sách thửa có GPS), tờ khai từng hộ và ảnh địa chính từng lô (tên file dạng “Ảnh địa chính Họ tên - DC55-203.jpg”). Công cụ lấy thông tin đơn vị, người đại diện, hộ, lô, số cây, giống và gán ảnh vào Phụ lục 2 của bảng câu hỏi."));
   el.append(top);
   const ids = Object.keys(S.regions);
   if (!ids.length) { el.append(h("div", { class: "card muted" }, "Chưa có vùng trồng nào. Bấm “Nhập file vùng trồng” để bắt đầu.")); return; }

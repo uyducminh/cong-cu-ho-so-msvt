@@ -8,7 +8,7 @@ Công cụ chạy trên trình duyệt, không cần cài đặt, để lập b�
 ## Cách dùng
 
 1. Mở trang công cụ (GitHub Pages của repo này).
-2. Nhập file Excel vùng trồng (3 sheet: Vùng trồng, Nông hộ, Lô đất).
+2. Nhập file Excel vùng trồng (3 sheet: Vùng trồng, Nông hộ, Lô đất), hoặc nhập nguyên bộ hồ sơ MVT dạng .zip (file Word “Bộ hồ sơ MVT”, tờ khai từng hộ, ảnh địa chính từng lô đặt tên “Ảnh địa chính Họ tên - Mã lô.jpg”). Ảnh địa chính được gán tự động vào Phụ lục 2 của bảng câu hỏi.
 3. Nhập kết quả kiểm tra thực tế, chỉnh phiếu khảo sát, tải ảnh, rồi tải hồ sơ (.docx / .zip).
 
 ## Lưu ý về dữ liệu

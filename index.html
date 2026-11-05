@@ -89,6 +89,7 @@ ol.guide li{margin:0 0 6px}
 <div id="toast"></div>
 <input type="file" id="fileXlsx" accept=".xlsx,.xls" class="hide">
 <input type="file" id="fileZip" accept=".zip" class="hide">
+<input type="file" id="fileQt" accept=".xlsx,.xls" class="hide">
 <input type="file" id="fileJson" accept=".json" class="hide">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1763,6 +1764,124 @@ function communeKeys() {
   for (const r of Object.values(S.regions)) { const k = slug(r.info.xa || "chua_ro_xa"); if (!S.communes[k]) { S.communes[k] = defaultConfig(r.info.xa || "Chưa rõ xã/phường"); persist("communes", k); } keys.add(k); }
   return [...keys];
 }
+/* ============================================================ process template (Excel): export the current process, import an edited / converted one */
+const QT_MV = [
+  ["Ngày bắt đầu vụ (sau thu hoạch), dd/mm", c => c.seasonStart, (c, v) => c.seasonStart = String(v).trim()],
+  ["Lệch ngày giữa các hộ (0–5 ngày)", c => c.lechNgay, (c, v) => c.lechNgay = num(v)],
+  ["Cán bộ kiểm tra bẫy, điều tra (trống = chủ lô)", c => c.canBo, (c, v) => c.canBo = String(v).trim()],
+  ["Ngừng phun thuốc trước thu hoạch tối thiểu (ngày)", c => c.minPhi, (c, v) => c.minPhi = num(v)],
+  ["Giữa 2 lần phun thuốc BVTV tối thiểu (ngày)", c => c.spacing.thuoc, (c, v) => c.spacing.thuoc = num(v)],
+  ["Giữa 2 lần bón phân gốc tối thiểu (ngày)", c => c.spacing.phan, (c, v) => c.spacing.phan = num(v)],
+  ["Giữa 2 lần phun phân bón lá tối thiểu (ngày)", c => c.spacing.la, (c, v) => c.spacing.la = num(v)],
+  ["Giữa phun thuốc và phun phân bón lá tối thiểu (ngày)", c => c.spacing.thuocLa, (c, v) => c.spacing.thuocLa = num(v)],
+  ["Lượng nước phun cho 1 cây ≥ 6 năm (lít)", c => c.spray.nuoc, (c, v) => c.spray.nuoc = num(v)],
+  ["Dung tích bình/phuy pha thuốc (lít)", c => c.spray.binh, (c, v) => c.spray.binh = num(v)],
+  ["Kiểm tra bẫy, sâu bệnh định kỳ mỗi (ngày)", c => c.monitor.every, (c, v) => c.monitor.every = num(v)],
+  ["Lần kiểm tra đầu: ngày thứ … của vụ", c => c.monitor.start, (c, v) => c.monitor.start = num(v)],
+  ["Nội dung kiểm tra định kỳ (tiếng Việt)", c => c.monitor.vn, (c, v) => c.monitor.vn = String(v).trim()],
+  ["Nội dung kiểm tra định kỳ (tiếng Trung)", c => c.monitor.cn, (c, v) => c.monitor.cn = String(v).trim()],
+  ["Điều tra 5 điểm chéo góc mỗi (ngày)", c => c.survey.every, (c, v) => c.survey.every = num(v)],
+];
+const QT_SHEETS = {
+  gd: ["Giai doan", ["Mã GĐ", "Giai đoạn (tiếng Việt)", "Tiếng Trung", "Số ngày", "Giai đoạn hoa nở (x)"]],
+  vt: ["Vat tu", ["Mã VT", "Tên thương mại", "Hoạt chất", "Loại", "Liều lượng (trống = theo nhãn)", "Phân bón: lượng/cây (cây ≥ 6 năm)", "Đơn vị", "Phun: nồng độ /100 lít", "ml/g", "Cách ly (ngày)", "Đã đối chiếu danh mục (x)"]],
+  cv: ["Cong viec", ["Mã GĐ", "Ngày sau bắt đầu GĐ", "Lặp lại mỗi (ngày)", "Loại việc", "Nội dung (tiếng Việt)", "Tiếng Trung", "Mã VT", "Liều riêng"]],
+  sb: ["Sau benh", ["Mã SVGH", "Tên (tiếng Việt)", "Tiếng Trung", "Tên khoa học", "Vị trí gây hại", "Vị trí (TQ)", "Biện pháp hóa học ({P} = tên thuốc)", "BP hóa học (TQ)", "Biện pháp thủ công", "BP thủ công (TQ)", "Mã VT thuốc mặc định", "Tháng thường xuất hiện (VD 5-11)", "Theo dõi bằng bẫy (x)"]],
+  db: ["Dien bien mau", ["Mã SVGH", "Mã GĐ", "Ngày sau bắt đầu GĐ", "Mức gây hại (Thấp/Trung bình/Cao)", "Xử lý (Thủ công/Hóa học)", "Mã VT thuốc (trống = mặc định)", "Thời tiết", "Lô áp dụng (trống = tất cả)"]],
+  bay: ["Bay", ["Loại bẫy", "Tiếng Trung", "Vị trí", "Vị trí (TQ)", "Bẫy ruồi đục quả (x)"]],
+};
+const xMark = v => v ? "x" : "";
+const isX = v => /^(x|có|co|yes|1|true|✓)$/i.test(String(v || "").trim());
+function exportProcessXlsx(cfg) {
+  const code = (prefix, i) => prefix + String(i + 1).padStart(2, "0");
+  const sid = new Map(cfg.stages.map((s, i) => [s.id, code("GD", i)])), pid = new Map(cfg.products.map((p, i) => [p.id, code("VT", i)])), vid = new Map(cfg.pests.map((p, i) => [p.id, code("SB", i)]));
+  const wb = XLSX.utils.book_new();
+  const add = (name, aoa, widths) => { const ws = XLSX.utils.aoa_to_sheet(aoa); ws["!cols"] = (widths || aoa[0].map(() => 18)).map(w => ({ wch: w })); XLSX.utils.book_append_sheet(wb, ws, name); };
+  add("Huong dan", [["HƯỚNG DẪN CẬP NHẬT QUY TRÌNH"], [""],
+    ["1. Mỗi sheet là một phần của quy trình: Mua vu, Giai doan, Vat tu, Cong viec, Sau benh, Dien bien mau, Bay. Giữ nguyên tên sheet và dòng tiêu đề."],
+    ["2. Mã GĐ, Mã VT, Mã SVGH dùng để liên kết giữa các sheet (VD công việc ở giai đoạn GD03 dùng vật tư VT02). Có thể ghi tên thay cho mã."],
+    ["3. Giai đoạn xếp đúng thứ tự trong vụ, bắt đầu từ ngày bắt đầu vụ; đánh dấu x cho giai đoạn hoa nở."],
+    [`4. Loại vật tư: ${LOAI.map(x => x[1]).join(", ")}. Loại việc: ${KIND.map(x => x[1]).join(", ")}.`],
+    ["5. Thuốc BVTV cần có hoạt chất, nồng độ theo nhãn và thời gian cách ly; chỉ dùng thuốc trong Danh mục được phép và đăng ký trên cây trồng."],
+    ["6. Sheet Dien bien mau chỉ để lập kế hoạch; kết quả kiểm tra thực tế vẫn nhập trong công cụ cho từng lô. Hồ sơ còn dữ liệu mẫu sẽ in chữ BẢN NHÁP."],
+    ["7. Cột tiếng Trung để trống được, nhưng hồ sơ song ngữ cần đủ trước khi nộp."],
+    ["8. Xong thì vào tab Quy trình > Nhập quy trình từ Excel; công cụ kiểm tra và báo lỗi trước khi áp dụng."]], [120]);
+  add("Mua vu", [["Thông số", "Giá trị"], ...QT_MV.map(([l, g]) => [l, g(cfg) ?? ""])], [55, 30]);
+  add(QT_SHEETS.gd[0], [QT_SHEETS.gd[1], ...cfg.stages.map(s => [sid.get(s.id), s.vn, s.cn, s.days, xMark(s.hoa)])], [8, 34, 22, 10, 12]);
+  add(QT_SHEETS.vt[0], [QT_SHEETS.vt[1], ...cfg.products.map(p => [pid.get(p.id), p.ten, p.hoatChat, (LOAI_M[p.loai] || LOAI_M.khac)[1], p.lieu, p.perTree, p.donVi, p.nd ?? "", p.ndDv ?? "", p.phi ?? "", xMark(p.dk)])], [8, 30, 26, 16, 18, 14, 8, 12, 6, 10, 12]);
+  add(QT_SHEETS.cv[0], [QT_SHEETS.cv[1], ...cfg.tasks.map(t => [sid.get(t.stage) || "", t.offset, t.repeat || "", (KIND.find(k => k[0] === t.kind) || KIND[0])[1], t.vn, t.cn, pid.get(t.prod) || "", t.dose || ""])], [8, 10, 10, 12, 46, 34, 8, 16]);
+  add(QT_SHEETS.sb[0], [QT_SHEETS.sb[1], ...cfg.pests.map(p => [vid.get(p.id), p.vn, p.cn, p.sci, p.viTri, p.viTriCn, p.bpHoa, p.bpHoaCn, p.bpTc, p.bpTcCn, pid.get(p.prod) || "", p.thang || "", xMark(p.trap)])], [8, 30, 18, 26, 18, 14, 34, 24, 34, 24, 10, 12, 10]);
+  add(QT_SHEETS.db[0], [QT_SHEETS.db[1], ...cfg.occ.map(o => [vid.get(o.pest) || "", sid.get(o.stage) || "", o.offset, o.muc, o.xuLy === "hoa" ? "Hóa học" : "Thủ công", pid.get(o.prod) || "", o.thoiTiet || "", o.lots || ""])], [8, 8, 10, 14, 14, 12, 10, 24]);
+  add(QT_SHEETS.bay[0], [QT_SHEETS.bay[1], ...cfg.traps.map(t => [t.vn, t.cn, t.pos, t.posCn, xMark(t.fly)])], [30, 18, 16, 12, 12]);
+  return wb;
+}
+// read a filled template into a new process; returns { cfg, errs, warns }
+function importProcessXlsx(wb, base) {
+  const errs = [], warns = [];
+  const sh = name => { const n = wb.SheetNames.find(x => norm(x) === norm(name)); return n ? XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: "", raw: false }) : null; };
+  const rowsOf = key => { const [name, hd] = QT_SHEETS[key]; const a = sh(name); if (!a) { errs.push(`Thiếu sheet “${name}”.`); return []; }
+    const H = (a[0] || []).map(norm); const idx = hd.map(x => H.indexOf(norm(x)));
+    hd.forEach((x, i) => { if (idx[i] < 0) warns.push(`Sheet ${name}: không thấy cột “${x}”, bỏ qua cột này.`); });
+    return a.slice(1).map((r, n) => ({ n: n + 2, v: idx.map(i => i < 0 ? "" : String(r[i] ?? "").trim()) })).filter(r => r.v.some(Boolean)); };
+  const cfg = clone(base); migrateCfg(cfg);
+  const mv = sh("Mua vu");
+  if (mv) for (const r of mv.slice(1)) { const f = QT_MV.find(x => norm(x[0]) === norm(r[0])); if (f && String(r[1] ?? "").trim() !== "") f[2](cfg, r[1]); }
+  else warns.push("Không có sheet “Mua vu”: giữ thông số mùa vụ hiện tại.");
+  const ref = (map, list, v, label, where) => { if (!v) return ""; const k = map.get(norm(v)); if (k) return k; const byName = list.find(x => norm(x.vn || x.ten) === norm(v)); if (byName) return byName.id; errs.push(`${where}: không tìm thấy ${label} “${v}”.`); return ""; };
+  // stages
+  const smap = new Map(); cfg.stages = rowsOf("gd").map(({ n, v: [c, vn, cn, days, hoa] }) => {
+    const s = { id: uid(), vn, cn, days: num(days), hoa: isX(hoa) };
+    if (!vn) errs.push(`Giai doan dòng ${n}: thiếu tên giai đoạn.`); if (!(s.days > 0)) errs.push(`Giai doan dòng ${n} (${vn}): số ngày phải lớn hơn 0.`);
+    if (c) smap.set(norm(c), s.id); return s; });
+  if (cfg.stages.length && !cfg.stages.some(s => s.hoa)) errs.push("Giai doan: chưa đánh dấu giai đoạn hoa nở (cần để tính ngày ra hoa, thu hoạch).");
+  const total = cfg.stages.reduce((a, s) => a + s.days, 0); if (total && (total < 300 || total > 400)) warns.push(`Giai doan: tổng ${total} ngày, khác xa 1 năm (365 ngày); kiểm tra lại số ngày.`);
+  // products
+  const pmap = new Map(); cfg.products = rowsOf("vt").map(({ n, v: [c, ten, hc, loai, lieu, per, dv, nd, ndDv, phi, dk] }) => {
+    const L = LOAI.find(x => norm(x[1]) === norm(loai) || x[0] === norm(loai));
+    const p = { id: uid(), ten, hoatChat: hc, loai: L ? L[0] : "khac", lieu, perTree: per, donVi: dv, nd, ndDv: ndDv || "ml", phi, dk: isX(dk) };
+    if (!ten) errs.push(`Vat tu dòng ${n}: thiếu tên.`); if (!L) warns.push(`Vat tu dòng ${n} (${ten}): loại “${loai}” không rõ, tạm để “Vật tư khác”.`);
+    if (isPesticide(p) && phi === "") warns.push(`Vat tu ${ten}: thuốc BVTV chưa có thời gian cách ly.`);
+    if (isPesticide(p) && !hc) warns.push(`Vat tu ${ten}: chưa có hoạt chất.`);
+    if (c) pmap.set(norm(c), p.id); return p; });
+  // pests
+  const vmap = new Map(); cfg.pests = rowsOf("sb").map(({ n, v: [c, vn, cn, sci, viTri, viTriCn, bpHoa, bpHoaCn, bpTc, bpTcCn, prod, thang, trap] }) => {
+    const p = { id: uid(), vn, cn, sci, viTri, viTriCn, bpHoa, bpHoaCn, bpTc, bpTcCn, prod: ref(pmap, cfg.products, prod, "vật tư", `Sau benh dòng ${n}`), thang, trap: isX(trap) };
+    if (!vn) errs.push(`Sau benh dòng ${n}: thiếu tên.`); if (!sci) warns.push(`Sau benh ${vn}: chưa có tên khoa học.`);
+    if (c) vmap.set(norm(c), p.id); return p; });
+  if (cfg.pests.length && !cfg.pests.some(p => p.trap)) warns.push("Sau benh: chưa có loài nào “Theo dõi bằng bẫy” (thường là ruồi đục quả).");
+  // tasks
+  cfg.tasks = rowsOf("cv").map(({ n, v: [st, off, rep, kind, vn, cn, prod, dose] }) => {
+    const K = KIND.find(k => norm(k[1]) === norm(kind) || k[0] === norm(kind));
+    const t = { id: uid(), stage: ref(smap, cfg.stages, st, "giai đoạn", `Cong viec dòng ${n}`), offset: num(off), repeat: rep === "" ? "" : num(rep), kind: K ? K[0] : "cham", vn, cn, prod: ref(pmap, cfg.products, prod, "vật tư", `Cong viec dòng ${n}`), dose };
+    if (!st) errs.push(`Cong viec dòng ${n}: thiếu giai đoạn.`); if (!vn) errs.push(`Cong viec dòng ${n}: thiếu nội dung.`);
+    if (!K) warns.push(`Cong viec dòng ${n}: loại việc “${kind}” không rõ, tạm để “Chăm sóc”.`);
+    if (["bon", "phun"].includes(t.kind) && !t.prod) warns.push(`Cong viec dòng ${n} (${vn}): việc ${t.kind === "bon" ? "bón phân" : "phun"} chưa gắn vật tư.`);
+    return t; });
+  if (cfg.tasks.length && !cfg.tasks.some(t => t.kind === "thu")) errs.push("Cong viec: chưa có công việc loại “Thu hoạch”.");
+  // sample occurrences, traps
+  const dbRows = rowsOf("db"); cfg.occ = dbRows.map(({ n, v: [pe, st, off, muc, xl, prod, tt, lots] }) => ({ id: uid(), pest: ref(vmap, cfg.pests, pe, "sinh vật gây hại", `Dien bien mau dòng ${n}`), stage: ref(smap, cfg.stages, st, "giai đoạn", `Dien bien mau dòng ${n}`), offset: num(off),
+    muc: (MUC.find(m => norm(m[0]) === norm(muc)) || MUC[0])[0], xuLy: /hoa hoc|hoa$/.test(norm(xl)) ? "hoa" : "thucong", prod: ref(pmap, cfg.products, prod, "vật tư", `Dien bien mau dòng ${n}`), thoiTiet: tt, soLuong: "", lots }));
+  const trapIds = new Set(cfg.pests.filter(p => p.trap).map(p => p.id)); cfg.occ = cfg.occ.filter(o => o.pest && !trapIds.has(o.pest));
+  const bay = rowsOf("bay"); if (bay.length) cfg.traps = bay.map(({ v: [vn, cn, pos, posCn, fly] }) => ({ id: uid(), vn, cn, pos, posCn, fly: isX(fly) }));
+  const used = new Set([...cfg.tasks.map(t => t.prod), ...cfg.pests.map(p => p.prod), ...cfg.occ.map(o => o.prod)]);
+  const unused = cfg.products.filter(p => !used.has(p.id)); if (unused.length) warns.push(`Vat tu chưa dùng ở công việc hay sâu bệnh nào: ${unused.map(p => p.ten).join(", ")}.`);
+  const noCn = [...cfg.stages, ...cfg.tasks, ...cfg.pests].filter(x => x.vn && !x.cn).length; if (noCn) warns.push(`${noCn} dòng chưa có tiếng Trung (giai đoạn, công việc, sâu bệnh); cần bổ sung trước khi nộp.`);
+  if (!cfg.stages.length) errs.push("Giai doan: chưa có giai đoạn nào."); if (!cfg.tasks.length) errs.push("Cong viec: chưa có công việc nào.");
+  return { cfg, errs, warns };
+}
+function reportBox(title, errs, warns, onApply) {
+  return new Promise(res => {
+    const close = v => { bg.remove(); res(v); };
+    const list = (a, cls) => a.length ? h("div", { class: "msg " + cls, style: "max-height:220px;overflow:auto" }, h("ul", { style: "margin:0 0 0 18px;padding:0" }, a.map(t => h("li", {}, t)))) : null;
+    const bg = h("div", { style: "position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px" },
+      h("div", { class: "card", style: "max-width:640px;width:100%;margin:0;max-height:90vh;overflow:auto" }, h("h3", { style: "margin-top:0" }, title),
+        errs.length ? h("p", {}, h("b", {}, `${errs.length} lỗi phải sửa trong file trước khi áp dụng:`)) : h("p", {}, "Không có lỗi."), list(errs, "err"),
+        warns.length ? h("p", {}, h("b", {}, `${warns.length} lưu ý (vẫn áp dụng được, nên bổ sung):`)) : null, list(warns, "warn"),
+        h("div", { class: "row", style: "justify-content:flex-end;margin-top:10px" }, h("button", { class: "btn", onclick: () => close(false) }, errs.length ? "Đóng" : "Hủy"),
+          errs.length ? null : h("button", { class: "btn pri", onclick: () => close(true) }, onApply))));
+    document.body.append(bg);
+  });
+}
 function renderQuyTrinh() {
   const el = $("#t-quytrinh"); el.replaceChildren();
   const keys = communeKeys();
@@ -1777,6 +1896,14 @@ function renderQuyTrinh() {
   el.append(h("div", { class: "card" }, h("div", { class: "row" }, h("b", {}, "Xã/phường:"), sel,
     h("button", { class: "btn sm", onclick: async () => { if (await ask("Đưa quy trình của xã/phường này về quy trình sầu riêng mẫu?")) { S.communes[UI.xa] = defaultConfig(cfg.xa); save(); renderQuyTrinh(); } } }, "Dùng quy trình sầu riêng mẫu"),
     copySel, h("button", { class: "btn sm", id: "btnTr", onclick: () => translateMissing(cfg) }, "Dịch các ô tiếng Trung còn trống")),
+    h("div", { class: "row", style: "margin-top:8px" },
+      h("button", { class: "btn sm", onclick: () => saveFile(`Quy_trinh_${slug(cfg.xa)}.xlsx`, new Blob([XLSX.write(exportProcessXlsx(cfg), { bookType: "xlsx", type: "array" })], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })) }, "Tải quy trình ra Excel (mẫu để cập nhật)"),
+      h("button", { class: "btn sm pri", onclick: () => { const i = $("#fileQt"); i.onchange = async () => { const f = i.files[0]; i.value = ""; if (!f) return;
+        try { const { cfg: nc, errs, warns } = importProcessXlsx(XLSX.read(await f.arrayBuffer(), { type: "array" }), cfg);
+          if (await reportBox(`Kiểm tra quy trình từ “${f.name}”: ${nc.stages.length} giai đoạn, ${nc.tasks.length} công việc, ${nc.products.length} vật tư, ${nc.pests.length} sinh vật gây hại`, errs, warns, `Áp dụng cho ${cfg.xa}`)) {
+            S.communes[UI.xa] = { ...nc, xa: cfg.xa }; persist("communes", UI.xa); toast("Đã áp dụng quy trình mới. Các vùng thuộc xã/phường này sẽ dùng quy trình này khi xuất hồ sơ."); renderQuyTrinh(); }
+        } catch (e) { console.error(e); toast("Không đọc được file quy trình: " + e.message); } }; i.click(); } }, "Nhập quy trình từ Excel")),
+    h("p", { class: "muted", style: "margin:6px 0 0;font-size:12px" }, "Doanh nghiệp có quy trình khác: tải file mẫu (đã điền sẵn quy trình hiện tại), sửa giai đoạn, công việc, phân thuốc, sâu bệnh theo quy trình của họ rồi nhập lại. Công cụ kiểm tra liên kết và báo lỗi trước khi áp dụng."),
     h("p", { class: "muted", style: "margin:8px 0 0" }, "Các vùng trồng thuộc cùng xã/phường dùng chung quy trình này. Ngày của mỗi việc = ngày bắt đầu giai đoạn + số ngày sau bắt đầu; “lặp lại” để trống nếu làm một lần.")));
   if (cfg.minPhi === undefined) el.append(h("div", { class: "msg warn" }, "Quy trình của xã/phường này tạo từ bản mẫu cũ (lịch vụ lệch khoảng 2 tháng so với Đắk Lắk). Bấm “Dùng quy trình sầu riêng mẫu” để nạp bản mới theo khung Đắk Lắk, hoặc tự chỉnh."));
   // season

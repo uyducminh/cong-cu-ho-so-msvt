@@ -11,6 +11,10 @@ Công cụ chạy trên trình duyệt, không cần cài đặt, để lập b�
 2. Nhập file Excel vùng trồng (3 sheet: Vùng trồng, Nông hộ, Lô đất), hoặc nhập nguyên bộ hồ sơ MVT dạng .zip (file Word “Bộ hồ sơ MVT”, tờ khai từng hộ, ảnh địa chính từng lô đặt tên “Ảnh địa chính Họ tên - Mã lô.jpg”). Ảnh địa chính được gán tự động vào Phụ lục 2 của bảng câu hỏi.
 3. Nhập kết quả kiểm tra thực tế, chỉnh phiếu khảo sát, tải ảnh, rồi tải hồ sơ (.docx / .zip).
 
+## Quy trình riêng của doanh nghiệp
+
+Tab Quy trình > “Tải quy trình ra Excel” cho file mẫu đã điền sẵn quy trình hiện tại (mùa vụ, giai đoạn, vật tư, công việc, sâu bệnh, diễn biến mẫu, bẫy). Sửa theo quy trình của doanh nghiệp rồi “Nhập quy trình từ Excel”: công cụ kiểm tra liên kết mã, báo lỗi và lưu ý trước khi áp dụng cho xã/phường.
+
 ## Lưu ý về dữ liệu
 
 - Dữ liệu và ảnh được lưu trên trình duyệt của máy đang dùng (IndexedDB), không gửi lên máy chủ. Máy khác hoặc trình duyệt khác sẽ không thấy.

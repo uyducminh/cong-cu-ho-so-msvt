@@ -69,6 +69,7 @@ ol.steps>li{margin:6px 0}
 <li><a href="#questionnaire">Phiếu khảo sát Questionnaire (file 06)</a></li>
 <li><a href="#phu-luc">Phụ lục 1 (ảnh, nhật ký điện tử) và Phụ lục 2 (ảnh vệ tinh)</a></li>
 <li><a href="#tai">Tải BẢN NHÁP và tải tệp chính thức</a></li>
+<li><a href="#farmbase">Xuất nhật ký canh tác sang FarmBase</a></li>
 <li><a href="#mau">Các file xuất ra và trang mẫu</a></li>
 <li><a href="#sao-luu">Sao lưu và chuyển máy</a></li>
 <li><a href="#luu-y">Các lưu ý quan trọng</a></li>
@@ -232,8 +233,30 @@ ol.steps>li{margin:6px 0}
 <p>Có thể tải riêng từng file bằng các nút trong danh sách file nếu chỉ cần sửa một nhật ký.</p>
 </section>
 
+<section id="farmbase">
+<h2><span class="n">12</span>Xuất nhật ký canh tác sang FarmBase</h2>
+<p>Đưa nhật ký canh tác của công cụ (công việc, giai đoạn, SVGH, phân bón, thuốc, liều lượng, cách ly, mã truy xuất, lô đất) lên FarmBase bằng file theo đúng mẫu nhập NKCT của FarmBase.</p>
+<ol class="steps">
+<li>Trên FarmBase, xuất file nhật ký canh tác của <b>đúng vùng và mùa vụ</b> (file tên dạng <span class="k">NKCT_11-2025_10-2026_….xlsx</span>).</li>
+<li>Trong công cụ, tab 3, chọn vùng, vụ và khoảng ngày. Kéo xuống thẻ <b>“Xuất nhật ký canh tác sang FarmBase”</b>, bấm <span class="k">Chọn file nhật ký từ FarmBase (NKCT .xlsx)</span>. Công cụ báo tên vùng, mùa vụ, số dòng đang có và cảnh báo đỏ nếu file là của vùng khác hoặc ngoài mùa vụ.</li>
+<li>Chọn <b>Cách ghép</b>. Mặc định là <i>giữ các dòng đang có, thêm dòng mới</i> (dòng trùng nông dân, ngày, công việc, phân thuốc sẽ bị bỏ).</li>
+<li>Bấm <span class="k">Tải file nhập nhật ký vào FarmBase (.xlsx)</span>, đọc bảng tóm tắt rồi bấm Đồng ý.</li>
+<li>Mở file kiểm tra, sau đó nhập lên FarmBase. Lần đầu nên thử với ít dòng.</li>
+</ol>
+<div class="tbl"><table>
+<tr><th>Cột FarmBase</th><th>Lấy từ công cụ</th></tr>
+<tr><td>ID</td><td>Để trống cho dòng mới; dòng đang có giữ nguyên ID</td></tr>
+<tr><td>Nông dân, Số điện thoại, Lô đất</td><td>Theo lô; tên và SĐT ưu tiên theo sheet Lô đất của FarmBase (khớp mã lô)</td></tr>
+<tr><td>Ngày, Giai đoạn, Công việc</td><td>Lịch quy trình đã chỉnh từng lô (dd-mm-yyyy)</td></tr>
+<tr><td>SVGH, Biện pháp</td><td>Kết quả kiểm tra thực tế đã nhập (mức gây hại, số ruồi/bẫy); với việc phun thuốc là đối tượng phòng trừ</td></tr>
+<tr><td>Loại, Tên, Hoạt chất, Liều lượng, Cách ly, Mã truy xuất</td><td>Mỗi phân thuốc một dòng. Loại PESTICIDE / FERTILIZER / GROWTH_REGULATOR / OTHER; mã truy xuất lấy theo danh mục FarmBase, nếu chưa có thì tự xếp (31.01–31.05, 3808.91–3808.99)</td></tr>
+</table></div>
+<div class="must"><b>Chỉ đưa lên những gì đã thực sự làm</b>File chỉ gồm việc đến hôm nay và các lần kiểm tra đã nhập kết quả thực tế. Diễn biến sâu bệnh mẫu của quy trình không được đưa sang. Các công việc lấy theo lịch quy trình, nên cần chủ hộ xác nhận; việc không làm thì tích “Bỏ” trong “Xem và chỉnh từng lô” trước khi xuất.</div>
+<div class="warn"><b>Khớp tên và mã lô</b>Bảng tóm tắt liệt kê lô và chủ hộ không có trên FarmBase, cùng phân thuốc chưa có trong danh mục (được thêm vào sheet “Phân thuốc”). Sửa cho khớp trước khi nhập để FarmBase nhận đúng.</div>
+</section>
+
 <section id="mau">
-<h2><span class="n">12</span>Các file xuất ra và trang mẫu</h2>
+<h2><span class="n">13</span>Các file xuất ra và trang mẫu</h2>
 <p>Năm nhật ký khớp nhau vì cùng lấy từ một gốc. <b>Nhật ký canh tác</b> là gốc, mỗi công việc, lần kiểm tra bẫy, đợt điều tra, lần phát hiện SVGH là một dòng. Các nhật ký còn lại lọc từ đó, nên ngày, lô, người và vật tư luôn trùng nhau.</p>
 <div class="grid2">
 <figure><img src="img/h01_nhat_ky_canh_tac.jpg" alt="Nhật ký canh tác"><figcaption>01. Nhật ký canh tác: toàn bộ công việc theo ngày và lô.</figcaption></figure>
@@ -250,7 +273,7 @@ ol.steps>li{margin:6px 0}
 </section>
 
 <section id="sao-luu">
-<h2><span class="n">13</span>Sao lưu và chuyển máy</h2>
+<h2><span class="n">14</span>Sao lưu và chuyển máy</h2>
 <figure><img src="img/20_sao_luu.jpg" alt="Tab sao lưu"><figcaption>Tab 4. Tệp sao lưu .json gồm vùng trồng, quy trình các xã/phường và các chỉnh sửa tay.</figcaption></figure>
 <ol class="steps">
 <li>Máy cũ: bấm <span class="k">Tải tệp sao lưu</span>.</li>
@@ -260,7 +283,7 @@ ol.steps>li{margin:6px 0}
 </section>
 
 <section id="luu-y">
-<h2><span class="n">14</span>Các lưu ý quan trọng</h2>
+<h2><span class="n">15</span>Các lưu ý quan trọng</h2>
 <div class="must"><b>1. Chỉ ghi điều đã thực sự xảy ra</b>Kết quả bẫy, mức sâu bệnh, ngày ra hoa, ngày thu hoạch và vật tư phải đúng thực tế ngoài vườn. Quy trình và diễn biến mẫu chỉ là kế hoạch. Hồ sơ còn dùng dữ liệu mẫu luôn ghi BẢN NHÁP và không được nộp như hồ sơ chính thức.</div>
 <div class="must"><b>2. Chủ hộ xác nhận và ký</b>In hồ sơ cho chủ hộ đọc lại, xác nhận đúng việc đã làm rồi mới ký.</div>
 <div class="warn"><b>3. Thuốc BVTV</b>Chỉ dùng thuốc có trong danh mục được phép sử dụng tại Việt Nam và không bị cấm ở thị trường nhập khẩu. Ghi đủ hoạt chất, liều lượng và thời gian cách ly (PHI). Ngày thu hoạch phải sau lần phun cuối ít nhất bằng PHI.</div>

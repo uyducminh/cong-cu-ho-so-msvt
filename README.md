@@ -15,6 +15,10 @@ Công cụ chạy trên trình duyệt, không cần cài đặt, để lập b�
 
 Tab Quy trình > “Tải quy trình ra Excel” cho file mẫu đã điền sẵn quy trình hiện tại (mùa vụ, giai đoạn, vật tư, công việc, sâu bệnh, diễn biến mẫu, bẫy). Sửa theo quy trình của doanh nghiệp rồi “Nhập quy trình từ Excel”: công cụ kiểm tra liên kết mã, báo lỗi và lưu ý trước khi áp dụng cho xã/phường.
 
+## Xuất nhật ký canh tác sang FarmBase
+
+Tab 3, thẻ "Xuất nhật ký canh tác sang FarmBase": chọn file NKCT xuất từ FarmBase của đúng vùng và mùa vụ, rồi tải file nhập theo mẫu 15 cột của FarmBase (dòng mới để trống ID). Chỉ gồm việc đến hôm nay và các lần kiểm tra đã nhập kết quả thực tế.
+
 ## Lưu ý về dữ liệu
 
 - Dữ liệu và ảnh được lưu trên trình duyệt của máy đang dùng (IndexedDB), không gửi lên máy chủ. Máy khác hoặc trình duyệt khác sẽ không thấy.

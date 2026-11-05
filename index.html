@@ -1997,6 +1997,119 @@ function dIn(n, w = 110) {
   i.addEventListener("change", () => { if (i.value.trim() && parseD(i.value) == null) { toast("Ngày chưa đúng dạng dd-mm-yyyy, VD 25-08-2026"); } }, true);
   return i;
 }
+/* ============================================================ FarmBase logbook import file (NKCT) */
+const FB_HEAD = ["ID", "Nông dân", "Số điện thoại", "Ngày", "Giai đoạn", "SVGH", "Biện pháp", "Loại phân thuốc", "Tên phân thuốc", "Hoạt chất", "Liều Lượng", "Cách ly", "Mã truy xuất", "Công việc", "Lô đất"];
+const FB_SHEET = "Nhật ký canh tác";
+const FB_BASE = {}; // region id -> parsed FarmBase export (kept for this session only)
+const fbDate = n => dmy(n);
+function fbParse(wb, fileName) {
+  const ws = wb.Sheets[FB_SHEET]; if (!ws) throw new Error(`File không có sheet “${FB_SHEET}”. Hãy dùng file nhật ký canh tác xuất từ FarmBase (NKCT_….xlsx).`);
+  const aoa = (s, raw = false) => wb.Sheets[s] ? XLSX.utils.sheet_to_json(wb.Sheets[s], { header: 1, raw, defval: "" }) : [];
+  const main = aoa(FB_SHEET), head = main[0].map(x => String(x).trim());
+  const miss = FB_HEAD.filter(c => !head.includes(c)); if (miss.length) throw new Error(`Sheet nhật ký thiếu cột: ${miss.join(", ")}.`);
+  const rows = main.slice(1).filter(r => r.some(v => String(v).trim())).map(r => FB_HEAD.map(c => String(r[head.indexOf(c)] ?? "").trim()));
+  const conf = aoa("Cấu hình").slice(1).filter(r => r[0]);
+  const C = Object.fromEntries(conf.map(r => [String(r[0]).trim(), String(r[1] ?? "").trim()]));
+  // merged cells: a farmer row may cover several lots, carry the name down
+  let last = ["", ""]; const lots = aoa("Lô đất").slice(1).filter(r => r[2]).map(r => { if (String(r[0]).trim()) last = [String(r[0]).trim(), String(r[1]).trim()]; return { ten: last[0], sdt: last[1], ma: String(r[2]).trim(), dt: r[3] }; });
+  const prods = aoa("Phân thuốc").slice(1).filter(r => r[1]).map(r => r.slice(0, 6).map(v => String(v ?? "").trim()));
+  const codes = aoa("Mã truy xuất").slice(1).filter(r => r[0]).map(r => r.slice(0, 3).map(v => String(v ?? "").trim()));
+  return { fileName, rows, conf, C, lots, prods, codes, sheets: { "Phân thuốc": aoa("Phân thuốc", true), "Mã truy xuất": aoa("Mã truy xuất", true), "Lô đất": aoa("Lô đất", true) } };
+}
+const FB_CODES = [["FERTILIZER", "Phân bón gốc động thực vật", "31.01"], ["FERTILIZER", "Phân đạm", "31.02"], ["FERTILIZER", "Phân lân", "31.03"], ["FERTILIZER", "Phân kali", "31.04"], ["FERTILIZER", "Phân bón khác", "31.05"], ["PESTICIDE", "Thuốc trừ côn trùng", "3808.91"], ["PESTICIDE", "Thuốc trừ nấm", "3808.92"], ["PESTICIDE", "Thuốc diệt cỏ, chống nẩy mầm", "3808.93"], ["GROWTH_REGULATOR", "Chất điều hòa sinh trưởng cây trồng", "3808.93"], ["OTHER", "Thuốc khử trùng", "3808.94"], ["PESTICIDE", "Thuốc khác", "3808.99"], ["OTHER", "Thuốc khác", "3808.99"]];
+const isGrowthReg = p => /gibberel|\bga3\b|naphthalene|\bnaa\b|paclobutrazol|ethephon|điều hòa sinh trưởng|kích thích sinh trưởng/i.test(`${p.ten} ${p.hoatChat}`);
+function fbType(p) {
+  if (isGrowthReg(p)) return "GROWTH_REGULATOR";
+  if (isPesticide(p)) return "PESTICIDE";
+  if (["phan", "huuco", "phanla"].includes(p.loai)) return "FERTILIZER";
+  return "OTHER";
+}
+function fbCode(p, type, cfg) {
+  const t = norm(`${p.ten} ${p.hoatChat}`);
+  if (type === "GROWTH_REGULATOR") return "3808.93";
+  if (type === "FERTILIZER") {
+    if (p.loai === "huuco" || /huu co|vi sinh|phan chuong|phan bo|trichoderma/.test(t)) return "31.01";
+    if (/npk|\d+-\d+-\d+/.test(t)) return "31.05";
+    if (/ure|\bdam\b|amoni|\bsa\b/.test(t)) return "31.02";
+    if (/\blan\b|super lan|phosphat|lan van dien|lan nung chay/.test(t)) return "31.03";
+    if (/kali|\bkcl\b|\bmop\b|\bsop\b/.test(t)) return "31.04";
+    return "31.05";
+  }
+  if (type === "PESTICIDE") {
+    if (p.loai === "sau") return "3808.91";
+    if (p.loai === "benh") return "3808.92";
+    if (/trichoderma|streptomyces|bacillus subtilis|chaetomium|phosphorous|fosetyl|mancozeb|metalaxyl/.test(t)) return "3808.92";
+    if (/thuringiensis|\bbt\b|beauveria|metarhizium|abamectin|emamectin|matrine|azadirachtin/.test(t)) return "3808.91";
+    const tg = cfg.pests.filter(v => v.prod === p.id).map(v => norm(v.vn)).join(" ");
+    if (/nam|benh|thoi|phytophthora|than thu|xi mu/.test(tg)) return "3808.92";
+    if (tg) return "3808.91";
+    return "3808.99";
+  }
+  return "3808.99";
+}
+function fbPhi(p) { if (!isPesticide(p) && !isGrowthReg(p)) return ""; const v = String(p.phi ?? "").trim(); if (!v || v === "–") return ""; return /^\d+(-\d+)?$/.test(v) ? `${v} ngày` : v; }
+// one row per product (FarmBase keeps one type and trace code per row); rows without products carry the task only
+function buildFarmbase(r, cfg, plan, from, to, base, mode) {
+  const today = todayDn(), end = Math.min(to, today, plan.sEnd), start = Math.max(from, plan.sStart);
+  const rep = { skipMon: 0, skipFuture: 0, skipDup: 0, newRows: 0, prodNew: new Map(), lotMiss: new Set(), farmerMiss: new Set(), stages: new Set(), end, start };
+  const bLots = base ? base.lots : [];
+  const byLot = new Map(bLots.map(l => [norm(l.ma), l]));
+  const byName = new Map(bLots.filter(l => l.ten).map(l => [norm(l.ten), l]));
+  const bProd = new Map((base ? base.prods : []).map(p => [norm(p[1]), p]));
+  const who = lot => {
+    const own = lotOwner(r, lot) || {};
+    const b = byLot.get(norm(lot.ma)) || byName.get(norm(lot.chu)) || byName.get(norm(own.ten));
+    if (base && !byLot.get(norm(lot.ma))) rep.lotMiss.add(lot.ma);
+    if (base && !b) rep.farmerMiss.add(lot.chu);
+    return { ten: b ? b.ten : (lot.chu || own.ten || ""), sdt: String((b && b.sdt) || lot.sdt || own.sdt || "").replace(/\D/g, "").replace(/^84/, "0"), lo: !base || byLot.get(norm(lot.ma)) ? lot.ma : "" };
+  };
+  const out = [];
+  for (const e of plan.active) {
+    if (e.d < start || e.d > to) continue;
+    if (e.d > end) { rep.skipFuture++; continue; }
+    if (e.kind === "pest") continue; // process template detections are not field records
+    if (e.kind === "mon" && !e.entered) { rep.skipMon++; continue; }
+    if (e.kind === "mon" && !e.found.length && !(e.fly > 0) && !e.prods.length) { /* entered, nothing found: still a real check */ }
+    const W = who(e.L), stg = e.stage ? e.stage.vn : ""; rep.stages.add(stg);
+    const found = (e.pests || []).filter(x => !x.fly || e.fly > 0);
+    const svgh = e.kind === "mon" ? found.map(x => x.fly ? `${x.v.vn} (${e.fly} con/bẫy)` : `${x.v.vn} (${x.muc})`).join(", ") : "";
+    const meas = e.kind === "mon" ? (found.length ? [...new Set(found.map(x => x.meas && x.meas[0]).filter(Boolean))].join("; ") : (e.note[0] || "Kiểm tra định kỳ, không phát hiện bất thường.")) : (e.note[0] || "");
+    const common = [W.ten, W.sdt, fbDate(e.d), stg];
+    if (!e.prods.length) out.push(["", ...common, svgh, meas, "", "", "", "", "", "", e.vn, W.lo]);
+    for (const u of e.prods) {
+      const p = u.p, type = fbType(p), b = bProd.get(norm(p.ten));
+      const tgt = svgh || (isPesticide(p) ? cfg.pests.filter(v => v.prod === p.id && !v.trap).map(v => v.vn).join(", ") : "");
+      if (!b) rep.prodNew.set(norm(p.ten), [type, p.ten, p.hoatChat || "", catalogDose(p) || "Theo nhãn", fbPhi(p), fbCode(p, type, cfg)]);
+      out.push(["", ...common, tgt, meas, b ? b[0] : type, p.ten, p.hoatChat || (b ? b[2] : ""), u.dose || catalogDose(p) || (b && b[3]) || "Theo nhãn", fbPhi(p) || (b ? b[4] : ""), b ? b[5] : fbCode(p, type, cfg), e.vn, W.lo]);
+    }
+  }
+  let rows = out;
+  if (base && mode !== "replace") {
+    const key = x => [norm(x[1]), x[3], norm(x[13]), norm(x[8])].join("|");
+    const have = new Set(base.rows.map(key));
+    rows = out.filter(x => { if (have.has(key(x))) { rep.skipDup++; return false; } return true; });
+    rows = [...base.rows, ...rows];
+  }
+  rep.newRows = rows.filter(x => !x[0]).length;
+  const wb = XLSX.utils.book_new();
+  const put = (name, aoa, widths, textCols = []) => {
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws["!cols"] = widths.map(w => ({ wch: w }));
+    const R = XLSX.utils.decode_range(ws["!ref"]);
+    for (let i = 1; i <= R.e.r; i++) for (const c of textCols) { const a = XLSX.utils.encode_cell({ r: i, c }); if (ws[a]) { ws[a].t = "s"; ws[a].z = "@"; } }
+    ws["!freeze"] = { xSplit: 0, ySplit: 1 };
+    XLSX.utils.book_append_sheet(wb, ws, name);
+  };
+  put(FB_SHEET, [FB_HEAD, ...rows], [38, 30, 14, 12, 20, 30, 34, 18, 30, 28, 24, 12, 12, 40, 12], [2, 3, 12]);
+  const prodSheet = base && base.sheets["Phân thuốc"].length ? base.sheets["Phân thuốc"].map(r => r.slice(0, 6)) : [["Loại phân thuốc", "Tên phân thuốc", "Hoạt chất", "Liều Lượng", "Cách ly", "Mã truy xuất"]];
+  put("Phân thuốc", [...prodSheet, ...rep.prodNew.values()], [18, 34, 34, 30, 14, 12], [5]);
+  put("Mã truy xuất", base && base.sheets["Mã truy xuất"].length ? base.sheets["Mã truy xuất"] : [["Loại phân thuốc", "Danh mục", "Mã truy xuất"], ...FB_CODES], [18, 36, 12], [2]);
+  const lotSheet = base && base.sheets["Lô đất"].length ? base.sheets["Lô đất"] : [["Nông dân", "Số điện thoại", "Lô đất", "Diện tích"], ...plan.lots.map(l => { const W = who(l); return [W.ten, W.sdt, l.ma, l.dienTich || ""]; })];
+  put("Lô đất", lotSheet, [34, 14, 14, 10], [1]);
+  const conf = base && base.conf.length ? [["Trường", "Dữ liệu"], ...base.conf] : [["Trường", "Dữ liệu"], ["ID mùa vụ", ""], ["ID vùng trồng", ""], ["Vùng trồng", r.info.ten || ""], ["Mã vùng trồng", r.info.ma || ""], ["Cây trồng", r.info.cayTrong || "Sầu riêng"], ["Bắt đầu mùa vụ", fbDate(plan.sStart)], ["Kết thúc mùa vụ", fbDate(plan.sEnd)], ["Bắt đầu thu hoạch", ""], ["Kết thúc thu hoạch", ""], ["Phiên bản dữ liệu", ""]];
+  put("Cấu hình", conf, [22, 70]);
+  return { wb, rep, rows };
+}
 function renderXuat() {
   const el = $("#t-xuat"); el.replaceChildren();
   const ids = Object.keys(S.regions);
@@ -2101,6 +2214,51 @@ function renderXuat() {
     blockers.length ? h("div", { class: "msg err" }, h("b", {}, `Chưa tải được tệp chính thức – còn ${blockers.length} mục bắt buộc (màu đỏ):`), h("ul", { style: "margin:4px 0 0 18px;padding:0" }, blockers.slice(0, 15).map(t => h("li", {}, t)), blockers.length > 15 ? h("li", {}, `… và ${blockers.length - 15} mục khác`) : null),
       h("div", { style: "margin-top:4px" }, "Bổ sung đủ các mục trên thì nút “Tải tệp chính thức” sẽ mở. Trong lúc đó vẫn tải được bản nháp để xem (có chữ BẢN NHÁP).")) : h("div", { class: "msg ok" }, "Đã đủ các mục bắt buộc – có thể tải tệp chính thức."),
     h("div", { class: "row", style: "margin-top:10px" }, btnOff, btnZip, one(0, "01 Canh tác"), one(1, "02 Sâu bệnh"), one(2, "03 Phân thuốc"), one(3, "04 ISPM 6"), one(4, "05 Ra vào"), one(5, "06 Phiếu khảo sát"))));
+
+  // ---- FarmBase logbook import file
+  {
+    const B = FB_BASE[r.id];
+    const fIn = h("input", { type: "file", accept: ".xlsx,.xls", class: "hide" });
+    fIn.addEventListener("change", async ev => {
+      const f = ev.target.files[0]; ev.target.value = ""; if (!f) return;
+      try { FB_BASE[r.id] = fbParse(XLSX.read(await f.arrayBuffer(), { type: "array", raw: false }), f.name); toast("Đã đọc file nhật ký FarmBase."); renderXuat(); }
+      catch (e) { toast(e.message); }
+    });
+    const modeSel = h("select", {}, [["keep", "Giữ các dòng đang có trên FarmBase, thêm dòng mới"], ["replace", "Chỉ gồm nhật ký của công cụ (bỏ các dòng đang có)"]].map(([v, t]) => h("option", { value: v }, t)));
+    modeSel.value = X.fbMode || "keep"; modeSel.addEventListener("change", () => { X.fbMode = modeSel.value; });
+    const info = [];
+    if (B) {
+      const C = B.C, nm = norm(C["Vùng trồng"] || ""), code = norm(C["Mã vùng trồng"] || "").replace(/[^a-z0-9]/g, "");
+      const okName = !nm || nm === norm(r.info.ten) || (code && code === norm(r.info.ma).replace(/[^a-z0-9]/g, ""));
+      info.push(h("div", { class: "msg ok" }, `Đã đọc ${B.fileName}: ${C["Vùng trồng"] || "(không rõ vùng)"}, mùa vụ ${C["Bắt đầu mùa vụ"] || "?"} – ${C["Kết thúc mùa vụ"] || "?"}, ${B.rows.length} dòng nhật ký đang có, ${B.lots.length} lô, ${B.prods.length} phân thuốc trong danh mục.`));
+      if (!okName) info.push(h("div", { class: "msg err" }, `File FarmBase là của vùng “${C["Vùng trồng"]}”, khác vùng đang chọn (“${r.info.ten}”). Kiểm tra lại trước khi nhập lên FarmBase.`));
+      const s0 = fromDMY(C["Bắt đầu mùa vụ"]), s1 = fromDMY(C["Kết thúc mùa vụ"]);
+      if (s0 != null && s1 != null && (X.to < s0 || X.from > s1)) info.push(h("div", { class: "msg err" }, "Khoảng ngày đang chọn nằm ngoài mùa vụ của file FarmBase. Chọn lại vụ hoặc tải file của đúng mùa vụ."));
+      else if (s0 != null && s1 != null && (X.from < s0 || X.to > s1)) info.push(h("div", { class: "msg warn" }, `Một phần khoảng ngày nằm ngoài mùa vụ FarmBase (${C["Bắt đầu mùa vụ"]} – ${C["Kết thúc mùa vụ"]}); các dòng ngoài mùa vụ có thể bị FarmBase từ chối.`));
+    } else info.push(h("div", { class: "msg warn" }, "Chưa chọn file nhật ký tải từ FarmBase. Vẫn xuất được, nhưng file sẽ thiếu ID mùa vụ, ID vùng trồng và danh sách lô của FarmBase, nên dễ bị từ chối khi nhập."));
+    const btnFb = h("button", { class: "btn pri", onclick: async () => {
+      try {
+        const { wb, rep } = buildFarmbase(r, cfg, mk(), X.from, X.to, FB_BASE[r.id], modeSel.value);
+        const lines = [`• ${rep.newRows} dòng mới (cột ID để trống), từ ${fmt(rep.start)} đến ${fmt(rep.end)}.`];
+        if (rep.skipFuture) lines.push(`• Bỏ ${rep.skipFuture} việc sau hôm nay: chưa làm thì chưa ghi vào nhật ký.`);
+        if (rep.skipMon) lines.push(`• Bỏ ${rep.skipMon} lần kiểm tra sâu bệnh, bẫy chưa nhập kết quả thực tế. Nhập kết quả ở mục “Kết quả kiểm tra sâu bệnh thực tế của lô” rồi xuất lại.`);
+        if (rep.skipDup) lines.push(`• Bỏ ${rep.skipDup} dòng đã có trên FarmBase (trùng nông dân, ngày, công việc, phân thuốc).`);
+        if (rep.lotMiss.size) lines.push(`• ${rep.lotMiss.size} lô không có trong danh sách lô của FarmBase (cột Lô đất để trống): ${[...rep.lotMiss].slice(0, 8).join(", ")}${rep.lotMiss.size > 8 ? "…" : ""}.`);
+        if (rep.farmerMiss.size) lines.push(`• ${rep.farmerMiss.size} chủ hộ không khớp tên trên FarmBase: ${[...rep.farmerMiss].slice(0, 6).join(", ")}${rep.farmerMiss.size > 6 ? "…" : ""}. Sửa tên cho khớp trước khi nhập.`);
+        if (FB_BASE[r.id] && rep.prodNew.size) lines.push(`• ${rep.prodNew.size} phân thuốc chưa có trong danh mục FarmBase, đã thêm vào sheet “Phân thuốc”: ${[...rep.prodNew.values()].map(x => x[1]).slice(0, 6).join(", ")}${rep.prodNew.size > 6 ? "…" : ""}.`);
+        lines.push("• Các công việc lấy theo lịch quy trình đã chỉnh cho từng lô. Chỉ nhập lên FarmBase những việc chủ hộ xác nhận đã làm thật; sửa hoặc bỏ dòng sai trong mục “Xem và chỉnh từng lô”.");
+        if (!await ask("Xuất file nhập nhật ký canh tác cho FarmBase\n\n" + lines.join("\n\n") + "\n\nTải file?")) return;
+        const nm = `NKCT_import_FarmBase_${slug(r.info.ma || r.info.ten).toUpperCase().slice(0, 30)}_${dmy(rep.start)}_${dmy(rep.end)}.xlsx`;
+        await saveFile(nm, new Blob([XLSX.write(wb, { bookType: "xlsx", type: "array" })], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+      } catch (e) { console.error(e); toast("Lỗi tạo file FarmBase: " + e.message); }
+    } }, "Tải file nhập nhật ký vào FarmBase (.xlsx)");
+    el.append(h("div", { class: "card" }, h("h2", {}, "Xuất nhật ký canh tác sang FarmBase"),
+      h("p", { class: "muted" }, "Tạo file theo đúng mẫu nhập nhật ký canh tác của FarmBase (15 cột: nông dân, ngày, giai đoạn, SVGH, biện pháp, phân thuốc, hoạt chất, liều lượng, cách ly, mã truy xuất, công việc, lô đất) từ nhật ký của công cụ. Bước 1: trên FarmBase xuất file nhật ký canh tác của đúng vùng và mùa vụ (NKCT_….xlsx) rồi chọn ở đây, để giữ ID mùa vụ, danh sách lô và danh mục phân thuốc. Bước 2: tải file, mở kiểm tra, rồi nhập lên FarmBase."),
+      ...info,
+      h("div", { class: "row", style: "margin-top:8px" }, h("button", { class: "btn", onclick: () => fIn.click() }, B ? "Chọn file FarmBase khác" : "Chọn file nhật ký từ FarmBase (NKCT .xlsx)"), fIn,
+        h("label", { class: "f" }, "Cách ghép", modeSel), btnFb),
+      h("p", { class: "muted", style: "margin:8px 0 0" }, "Chỉ lấy các việc đến hôm nay và các lần kiểm tra đã nhập kết quả thực tế; diễn biến sâu bệnh mẫu của quy trình không được đưa sang FarmBase. Nên thử nhập với ít dòng trước để xem FarmBase xử lý cột ID trống thế nào.")));
+  }
 
   // ---- per-lot calendar (flowering / harvest-end) for this season
   const lotEd = () => (ed()["#lots"] = ed()["#lots"] || {});

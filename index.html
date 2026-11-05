@@ -913,7 +913,8 @@ function makeDoc(ctx, landscape, children) {
 function cover(ctx, vn, cn, purpose) {
   const out = [];
   for (let i = 0; i < 3; i++) out.push(para("", { after: 6 }));
-  if (ctx.draft) out.push(para(`BẢN NHÁP – còn ${ctx.draft} lô dùng dữ liệu mẫu của quy trình (sâu bệnh, bẫy chưa nhập kết quả kiểm tra thực tế). Không dùng bản này để nộp. / 草稿：部分地块仍为模板数据，不得提交。`, { s: 12, b: true, al: "c", c: "C00000", after: 12 }));
+  if (ctx.draft && !ctx.draftLots) out.push(para("BẢN NHÁP – hồ sơ còn thiếu thông tin bắt buộc (các mục báo đỏ trong công cụ). Không dùng bản này để nộp. / 草稿：仍缺少必填信息，不得提交。", { s: 12, b: true, al: "c", c: "C00000", after: 12 }));
+  if (ctx.draftLots) out.push(para(`BẢN NHÁP – còn ${ctx.draftLots} lô dùng dữ liệu mẫu của quy trình (sâu bệnh, bẫy chưa nhập kết quả kiểm tra thực tế). Không dùng bản này để nộp. / 草稿：部分地块仍为模板数据，不得提交。`, { s: 12, b: true, al: "c", c: "C00000", after: 12 }));
   out.push(para(ctx.org.toUpperCase(), { s: 18, b: true, al: "c", c: GREEN, after: 2 }));
   out.push(para("-----oOo-----", { al: "c", after: 24 }));
   out.push(para(cn, { s: 20, b: true, al: "c", after: 4 }));
@@ -971,6 +972,7 @@ function catalogDose(p) {
 }
 function amountOf(p, lot) { const k = num(p.perTree); if (!(k > 0) || !(lot.soCay > 0)) return "–"; const v = Math.round(k * lot.soCay * 100) / 100; return `${String(v).replace(".", ",")} ${p.donVi || ""}`.trim(); }
 
+let FORCE_DRAFT = false; // set while exporting when required (red) items are still missing
 function buildDocs(r, cfg, plan, from, to) {
   const ev = plan.active.filter(e => e.d >= from && e.d <= to && e.d >= plan.sStart && e.d <= plan.sEnd);
   const lots = plan.lots;
@@ -985,7 +987,7 @@ function buildDocs(r, cfg, plan, from, to) {
   };
   const byLot = k => ev.filter(e => e.lot === k);
   const draftLots = new Set(ev.filter(e => e.kind === "mon" && !e.entered).map(e => e.lot));
-  ctx.draft = draftLots.size;
+  ctx.draftLots = draftLots.size; ctx.draft = draftLots.size || (FORCE_DRAFT ? 1 : 0);
   lots.forEach(l => { l.draftMark = draftLots.has(l.k); });
   const files = [];
   const code = slug(r.info.ma || r.info.maAgribase || r.info.ten).toUpperCase().slice(0, 30);
@@ -1523,6 +1525,7 @@ function buildQ(r, cfg, plan, from, to) {
     rows: keys.map(k => new D.TableRow({ cantSplit: true, children: [cell(labelParas(k), LW, { fill: "F4F7F4" }), cell(valParas(k), VW)] })) });
   const hd = (cn, vn, en) => EN ? [cn, en, vn] : [cn, vn];
   const ch = [];
+  if (!T.draft && FORCE_DRAFT) ch.push(para("BẢN NHÁP – phiếu hoặc hồ sơ còn thiếu thông tin bắt buộc (mục báo đỏ trong công cụ). Không dùng bản này để nộp. / 草稿", { s: 10.5, b: true, al: "c", c: "C00000", after: 6 }));
   if (T.draft) ch.push(para("BẢN NHÁP – còn lần kiểm tra chưa nhập kết quả thực tế; bảng giám sát để trống cho đến khi nhập. Không dùng bản này để nộp. / 草稿", { s: 10.5, b: true, al: "c", c: "C00000", after: 6 }));
   ch.push(para("种植场调查表", { s: 16, b: true, al: "c", after: 0 }));
   if (EN) ch.push(para("Questionnaire of Plantation", { s: 14, b: true, al: "c", after: 0 }));
@@ -1615,7 +1618,7 @@ function buildQ(r, cfg, plan, from, to) {
     });
     ch.push(new D.Table({ columnWidths: [IW, PW], layout: D.TableLayoutType.FIXED, width: { size: W, type: D.WidthType.DXA }, rows: [hdr, ...rows] }));
   }
-  const ctx = { org: r.info.donVi || r.info.ten || "", header: r.info.ten || "", title: "种植场调查表 – Bảng câu hỏi vùng trồng", draft: T.draft ? 1 : 0 };
+  const ctx = { org: r.info.donVi || r.info.ten || "", header: r.info.ten || "", title: "种植场调查表 – Bảng câu hỏi vùng trồng", draft: T.draft || FORCE_DRAFT ? 1 : 0 };
   return makeDoc(ctx, false, ch);
 }
 // what still needs to be added before submission
@@ -1929,11 +1932,19 @@ function renderXuat() {
   const issues = [...regionIssues(r), ...planIssues(r, cfg, plan, X.from, X.to), ...realIssues(r, cfg, plan, ed())];
   const nErr = issues.filter(x => x[0] === "err").length;
   const isDraft = inR.some(e => e.kind === "mon" && !e.entered);
-  const btnZip = h("button", { class: "btn pri", onclick: () => doExport(null) }, isDraft ? "Tải BẢN NHÁP trọn bộ hồ sơ (.zip)" : "Tải trọn bộ hồ sơ (.zip)");
+  // official files only when every required (red) item is complete
+  const qErrs = X.withQ !== false ? qIssues(r, qAuto(r, cfg, plan, X.from, X.to), r.qLang === "en" ? "en" : "cn").filter(x => x[0] === "err").map(x => `Phiếu khảo sát (06): thiếu ${x[1]}`) : [];
+  const nMonLeft = inR.filter(e => e.kind === "mon" && !e.entered).length;
+  const blockers = [...issues.filter(x => x[0] === "err").map(x => x[1]), ...(isDraft && !issues.some(x => x[0] === "err" && /chưa nhập kết quả/.test(x[1])) ? [`Còn ${nMonLeft} lần kiểm tra sâu bệnh, bẫy chưa nhập kết quả thực tế (mục “Kết quả kiểm tra sâu bệnh thực tế của lô”).`] : []), ...qErrs];
+  const btnZip = h("button", { class: blockers.length ? "btn" : "btn sm", onclick: () => doExport(null) }, blockers.length ? "Tải BẢN NHÁP trọn bộ (.zip)" : "Tải bản xem thử (.zip)");
+  const btnOff = h("button", { class: "btn pri", disabled: blockers.length > 0, title: blockers.length ? `Còn ${blockers.length} mục bắt buộc chưa đủ` : "", onclick: () => { if (!blockers.length) doExport(null, true); } }, "Tải tệp chính thức (.zip)");
   const one = (i, t) => h("button", { class: "btn sm", onclick: () => doExport(i) }, t);
-  async function doExport(which) {
+  async function doExport(which, official) {
     const withQ = which === 5 || (which == null && X.withQ !== false);
+    if (official && blockers.length) { toast("Chưa tải được tệp chính thức: còn mục bắt buộc chưa đủ."); return; }
+    FORCE_DRAFT = blockers.length > 0;
     const notes = [];
+    if (official) notes.push("• Tệp chính thức: đã đủ các mục bắt buộc. Vẫn nên rà lại thông tin, nhất là cơ sở đóng gói, mã và khoảng cách trong phiếu khảo sát, trước khi ký và nộp.");
     if (isDraft && (which == null || which === 5)) notes.push("• Đây là BẢN NHÁP: xem lại các nội dung bôi đỏ trong hồ sơ (lô còn lần kiểm tra chưa nhập kết quả, các mục cần bổ sung) trước khi dùng.");
     if (withQ) notes.push(`• Phiếu khảo sát dùng các nội dung đã lưu${r.qExport ? ` từ lần xuất gần nhất (${r.qExport})` : ""}. Kiểm tra và sửa nếu cần, nhất là cơ sở đóng gói, mã cơ sở đóng gói và khoảng cách (bôi đỏ trong phiếu).`);
     if (notes.length && !await ask(notes.join("\n\n") + "\n\nTiếp tục tải?")) return;
@@ -1960,7 +1971,9 @@ function renderXuat() {
     issues.length ? issues.map(([t, m]) => h("div", { class: "msg " + t }, m)) : h("div", { class: "msg ok" }, "Không có lỗi. Năm nhật ký lấy cùng dữ liệu nên khớp ngày, lô, người và vật tư."),
     nErr ? h("p", { class: "muted" }, `Còn ${nErr} lỗi đỏ: vẫn xuất được để xem thử, nhưng nên sửa trước khi nộp.`) : null,
     isDraft ? h("div", { class: "msg err" }, "Bộ hồ sơ đang là BẢN NHÁP. Sau khi tải, xem lại các nội dung bôi đỏ trong file (lô chưa nhập đủ kết quả kiểm tra, cơ sở đóng gói, mã và khoảng cách trong phiếu khảo sát) và sửa trước khi nộp.") : null,
-    h("div", { class: "row", style: "margin-top:10px" }, btnZip, one(0, "01 Canh tác"), one(1, "02 Sâu bệnh"), one(2, "03 Phân thuốc"), one(3, "04 ISPM 6"), one(4, "05 Ra vào"), one(5, "06 Phiếu khảo sát"))));
+    blockers.length ? h("div", { class: "msg err" }, h("b", {}, `Chưa tải được tệp chính thức – còn ${blockers.length} mục bắt buộc (màu đỏ):`), h("ul", { style: "margin:4px 0 0 18px;padding:0" }, blockers.slice(0, 15).map(t => h("li", {}, t)), blockers.length > 15 ? h("li", {}, `… và ${blockers.length - 15} mục khác`) : null),
+      h("div", { style: "margin-top:4px" }, "Bổ sung đủ các mục trên thì nút “Tải tệp chính thức” sẽ mở. Trong lúc đó vẫn tải được bản nháp để xem (có chữ BẢN NHÁP).")) : h("div", { class: "msg ok" }, "Đã đủ các mục bắt buộc – có thể tải tệp chính thức."),
+    h("div", { class: "row", style: "margin-top:10px" }, btnOff, btnZip, one(0, "01 Canh tác"), one(1, "02 Sâu bệnh"), one(2, "03 Phân thuốc"), one(3, "04 ISPM 6"), one(4, "05 Ra vào"), one(5, "06 Phiếu khảo sát"))));
 
   // ---- per-lot calendar (flowering / harvest-end) for this season
   const lotEd = () => (ed()["#lots"] = ed()["#lots"] || {});

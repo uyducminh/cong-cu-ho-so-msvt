@@ -72,7 +72,7 @@ ol.guide li{margin:0 0 6px}
 <body>
 <header>
   <h1>Hồ sơ nhật ký mã số vùng trồng</h1>
-  <p class="sub">Nhập file vùng trồng → thiết lập mùa vụ, quy trình từng xã/phường → xuất bộ 5 nhật ký song ngữ Việt – Trung (.docx) theo khoảng ngày. <span id="saveState" class="pill">Đang kết nối lưu trữ…</span></p>
+  <p class="sub">Nhập file vùng trồng → thiết lập mùa vụ, quy trình từng xã/phường → xuất bộ 5 nhật ký và phiếu khảo sát Questionnaire song ngữ Việt – Trung (.docx). <a href="huong-dan/" target="_blank" style="color:inherit;font-weight:600">Xem hướng dẫn sử dụng</a> · <a href="huong-dan/Huong_dan_su_dung_cong_cu_MSVT.pdf" target="_blank" style="color:inherit;font-weight:600">PDF</a>. <span id="saveState" class="pill">Đang kết nối lưu trữ…</span></p>
   <nav id="tabs">
     <button data-t="vung" class="on">1. Vùng trồng</button>
     <button data-t="quytrinh">2. Mùa vụ &amp; quy trình</button>
@@ -2341,8 +2341,8 @@ function renderSaoLuu() {
     h("p", { class: "muted" }, "Dữ liệu được lưu riêng cho tài khoản của bạn trên trang này. Tệp sao lưu (.json) gồm vùng trồng, quy trình các xã/phường và chỉnh sửa tay; dùng để chuyển sang máy khác hoặc gửi cho người cùng làm hồ sơ."),
     h("div", { class: "row" }, h("button", { class: "btn pri", onclick: () => saveFile(`Sao_luu_ho_so_MSVT_${iso(todayDn())}.json`, new Blob([JSON.stringify({ v: 1, ...S }, null, 1)], { type: "application/json" })) }, "Tải tệp sao lưu"),
       h("button", { class: "btn", onclick: () => $("#fileJson").click() }, "Khôi phục từ tệp sao lưu"))));
-  el.append(h("div", { class: "card" }, h("h2", {}, "Cách dùng"), h("ol", { class: "guide" },
-    h("li", {}, h("b", {}, "Nhập vùng trồng: "), "tab 1, chọn file Excel xuất từ Agribase. Điền các ô viền đỏ (người đại diện, địa chỉ, tiêu chuẩn, thông tin CCCD, số cây…)."),
+  el.append(h("div", { class: "card" }, h("h2", {}, "Cách dùng"), h("p", {}, h("a", { href: "huong-dan/", target: "_blank" }, "Mở hướng dẫn chi tiết có hình minh họa"), " · ", h("a", { href: "huong-dan/Huong_dan_su_dung_cong_cu_MSVT.pdf", target: "_blank" }, "Tải bản PDF")), h("ol", { class: "guide" },
+    h("li", {}, h("b", {}, "Nhập vùng trồng: "), "tab 1, nhập bộ hồ sơ .zip (FarmBase: tab Hồ sơ → Xuất hồ sơ) hoặc file Excel danh sách vùng trồng (FarmBase: nút … → Xuất file danh sách vùng trồng → Tải mẫu). Điền các ô viền đỏ (người đại diện, địa chỉ, tiêu chuẩn, thông tin CCCD, số cây…)."),
     h("li", {}, h("b", {}, "Thiết lập mùa vụ cho xã/phường: "), "tab 2, nhập ngày bắt đầu vụ (sau thu hoạch) và số ngày từng giai đoạn. Mỗi xã/phường có quy trình riêng; vùng mới tự nhận quy trình sầu riêng mẫu, có thể sao chép từ xã khác."),
     h("li", {}, h("b", {}, "Chỉnh quy trình: "), "công việc, phân bón, thuốc (hoạt chất, liều, cách ly), sinh vật gây hại và các lần phát hiện trong vụ. Bấm “Dịch các ô tiếng Trung còn trống” cho dòng mới thêm, rồi rà lại."),
     h("li", {}, h("b", {}, "Xuất hồ sơ: "), "tab 3, chọn vùng và vụ (theo ngày bắt đầu vụ của xã, hoặc nhập ngày kết thúc vụ để tự tính ngược đầu vụ), khoảng ngày. Nhập ngày ra hoa, thu hoạch từng lô, vật tư hộ đã mua và kết quả kiểm tra sâu bệnh thực tế, rồi tải trọn bộ 5 nhật ký."),

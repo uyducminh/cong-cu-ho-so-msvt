@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hướng dẫn công cụ MSVT</title>
+<style>
+:root{--bg:#f6f7f4;--card:#fff;--ink:#1d2420;--mut:#5d6862;--line:#dde3dc;--pri:#2f7d3a;--pri-s:#e6f2e7;--red:#b42318;--red-s:#fdecea;--yel:#8a6100;--yel-s:#fff6dc;--blue:#1f5f9e;--blue-s:#e8f1fb;--code:#eef1ec}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141815;--card:#1c211d;--ink:#e6ebe6;--mut:#a3aea6;--line:#2f3831;--pri:#6cc07a;--pri-s:#1f3323;--red:#ff8a80;--red-s:#3a1f1d;--yel:#f2c24e;--yel-s:#352b12;--blue:#8cc2f5;--blue-s:#18293a;--code:#252c27}}
+:root[data-theme="dark"]{--bg:#141815;--card:#1c211d;--ink:#e6ebe6;--mut:#a3aea6;--line:#2f3831;--pri:#6cc07a;--pri-s:#1f3323;--red:#ff8a80;--red-s:#3a1f1d;--yel:#f2c24e;--yel-s:#352b12;--blue:#8cc2f5;--blue-s:#18293a;--code:#252c27}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:var(--pri)}
+.wrap{max-width:1040px;margin:0 auto;padding:0 16px 64px}
+header{background:var(--pri);color:#fff;padding:28px 16px}
+header .in{max-width:1040px;margin:0 auto}
+header h1{margin:0 0 6px;font-size:28px;line-height:1.25}
+header p{margin:0;opacity:.92}
+header a.btn{display:inline-block;margin-top:14px;background:#fff;color:#1f5a28;padding:8px 14px;border-radius:8px;text-decoration:none;font-weight:600}
+nav.toc{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin:24px 0}
+nav.toc h2{margin:0 0 8px;font-size:17px}
+nav.toc ol{margin:0;padding-left:22px;columns:2;column-gap:32px}
+nav.toc li{break-inside:avoid;margin:2px 0}
+section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 24px;margin:20px 0}
+section>h2{margin:0 0 10px;font-size:22px;line-height:1.3}
+section>h2 .n{display:inline-block;min-width:34px;height:34px;line-height:34px;text-align:center;border-radius:50%;background:var(--pri-s);color:var(--pri);margin-right:8px;font-size:17px}
+h3{font-size:18px;margin:22px 0 6px}
+figure{margin:14px 0 18px}
+figure img{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;display:block;background:#fff}
+figure.half{max-width:620px}
+figcaption{font-size:14px;color:var(--mut);margin-top:6px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid2 figure{margin:0}
+.note{border-left:4px solid var(--blue);background:var(--blue-s);padding:10px 14px;border-radius:6px;margin:12px 0}
+.warn{border-left:4px solid var(--yel);background:var(--yel-s);padding:10px 14px;border-radius:6px;margin:12px 0}
+.must{border-left:4px solid var(--red);background:var(--red-s);padding:10px 14px;border-radius:6px;margin:12px 0}
+.note b:first-child,.warn b:first-child,.must b:first-child{display:block;margin-bottom:2px}
+.k{display:inline-block;background:var(--code);border:1px solid var(--line);border-radius:6px;padding:0 7px;font-size:14px;font-weight:600;white-space:nowrap}
+.r{color:var(--red);font-weight:600}.y{color:var(--yel);font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:15px;margin:10px 0}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+th{background:var(--pri-s)}
+.tbl{overflow-x:auto}
+ol.steps>li{margin:6px 0}
+.top{display:inline-block;font-size:14px;margin-top:8px}
+@media (max-width:720px){nav.toc ol{columns:1}.grid2{grid-template-columns:1fr}section{padding:16px}header h1{font-size:23px}}
+@media print{body{background:#fff;font-size:12.5px}header{-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:18px 16px}header a.btn,.top{display:none}section,nav.toc{border:none;padding:0;margin:14px 0;break-inside:auto}section>h2{break-after:avoid}figure,.note,.warn,.must,table,tr{break-inside:avoid}h3{break-after:avoid}.wrap{max-width:none;padding:0}figure.half{max-width:60%}.note,.warn,.must,th,section>h2 .n{-webkit-print-color-adjust:exact;print-color-adjust:exact}a{color:inherit;text-decoration:none}.grid2{grid-template-columns:1fr 1fr!important}nav.toc ol{columns:2!important}figure img{width:auto;max-width:100%;max-height:200mm;margin:0 auto}.grid2 figure img{max-height:118mm}}
+</style>
+</head>
+<body>
+<header><div class="in">
+<h1>Hướng dẫn sử dụng công cụ hồ sơ mã số vùng trồng</h1>
+<p>Nhập dữ liệu vùng trồng, thiết lập quy trình, xuất bộ 5 nhật ký song ngữ Việt – Trung và phiếu khảo sát Questionnaire có Phụ lục ảnh.</p>
+<a class="btn" href="../">Mở công cụ</a>
+</div></header>
+
+<div class="wrap">
+<p class="warn" style="margin-top:20px"><b>Về hình minh họa</b>Mọi hình trong trang này dùng dữ liệu giả (“Vùng trồng mẫu A”, “HTX Nông nghiệp Mẫu”, tên hộ và ảnh vệ tinh mô phỏng) để không lộ thông tin nông hộ thật.</p>
+
+<nav class="toc" id="muc-luc"><h2>Mục lục</h2><ol>
+<li><a href="#tong-quan">Tổng quan và quy trình làm việc</a></li>
+<li><a href="#luu-tru">Dữ liệu được lưu ở đâu</a></li>
+<li><a href="#nhap">Nhập dữ liệu: Excel hoặc bộ hồ sơ .zip</a></li>
+<li><a href="#bo-sung">Bổ sung thông tin vùng và lô</a></li>
+<li><a href="#quy-trinh">Mùa vụ và quy trình canh tác</a></li>
+<li><a href="#quy-trinh-excel">Quy trình riêng của doanh nghiệp (Excel)</a></li>
+<li><a href="#xuat">Xuất hồ sơ: chọn vụ, lịch lô, vật tư</a></li>
+<li><a href="#kiem-tra">Nhập kết quả kiểm tra sâu bệnh thực tế</a></li>
+<li><a href="#questionnaire">Phiếu khảo sát Questionnaire (file 06)</a></li>
+<li><a href="#phu-luc">Phụ lục 1 (ảnh, nhật ký điện tử) và Phụ lục 2 (ảnh vệ tinh)</a></li>
+<li><a href="#tai">Tải BẢN NHÁP và tải tệp chính thức</a></li>
+<li><a href="#mau">Các file xuất ra và trang mẫu</a></li>
+<li><a href="#sao-luu">Sao lưu và chuyển máy</a></li>
+<li><a href="#luu-y">Các lưu ý quan trọng</a></li>
+</ol></nav>
+
+<section id="tong-quan">
+<h2><span class="n">1</span>Tổng quan và quy trình làm việc</h2>
+<p>Công cụ chạy ngay trên trình duyệt, không cần cài đặt và không cần đăng nhập. Có 4 tab, làm lần lượt từ trái sang phải:</p>
+<div class="tbl"><table>
+<tr><th>Tab</th><th>Việc làm</th><th>Kết quả</th></tr>
+<tr><td><b>1. Vùng trồng</b></td><td>Nhập Excel hoặc bộ hồ sơ .zip, bổ sung thông tin tổ chức, nông hộ, lô đất</td><td>Danh sách hộ và lô đầy đủ</td></tr>
+<tr><td><b>2. Mùa vụ &amp; quy trình</b></td><td>Đặt ngày bắt đầu vụ, giai đoạn, công việc, phân thuốc, sâu bệnh cho từng xã/phường</td><td>Lịch canh tác chuẩn cho cả vùng</td></tr>
+<tr><td><b>3. Xuất hồ sơ</b></td><td>Chọn vùng và vụ, chỉnh lịch từng lô, nhập vật tư và kết quả kiểm tra thực tế, điền phiếu Questionnaire, tải file</td><td>6 file .docx (5 nhật ký + Questionnaire)</td></tr>
+<tr><td><b>4. Sao lưu &amp; hướng dẫn</b></td><td>Tải tệp sao lưu .json, khôi phục trên máy khác</td><td>Dữ liệu an toàn khi đổi máy</td></tr>
+</table></div>
+<div class="note"><b>Quy ước màu dùng xuyên suốt</b><span class="r">Đỏ</span> là bắt buộc. Thiếu thì không tải được tệp chính thức. <span class="y">Vàng</span> là nên có, không chặn việc tải nhưng hồ sơ sẽ kém đầy đủ. Trong file Word xuất ra, chữ đỏ đánh dấu chỗ còn thiếu cần điền.</div>
+</section>
+
+<section id="luu-tru">
+<h2><span class="n">2</span>Dữ liệu được lưu ở đâu</h2>
+<p>Khi mở bằng link GitHub, dữ liệu (kể cả ảnh) được lưu <b>trong chính trình duyệt của máy đang dùng</b>. Dòng trạng thái ở đầu trang cho biết đang lưu ở đâu.</p>
+<ul>
+<li>Đóng trình duyệt rồi mở lại vẫn còn dữ liệu.</li>
+<li>Máy khác, trình duyệt khác hoặc cửa sổ ẩn danh <b>không thấy</b> dữ liệu này.</li>
+<li>Xóa lịch sử hoặc “dữ liệu trang web” của trình duyệt sẽ <b>mất</b> dữ liệu.</li>
+</ul>
+<div class="must"><b>Bắt buộc sao lưu</b>Sau mỗi buổi làm việc, vào tab 4 bấm <span class="k">Tải tệp sao lưu</span>. Ảnh không nằm trong tệp sao lưu .json, nên hãy giữ lại các file ảnh gốc hoặc bộ hồ sơ .zip.</div>
+</section>
+
+<section id="nhap">
+<h2><span class="n">3</span>Nhập dữ liệu: Excel hoặc bộ hồ sơ .zip</h2>
+<h3>Bước 0: lấy file từ hệ thống FarmBase (tài khoản quyền cộng tác viên)</h3>
+<p><b>Lấy bộ hồ sơ .zip</b> (chi tiết nhất, có ảnh vệ tinh từng lô):</p>
+<ol class="steps">
+<li>Đăng nhập FarmBase bằng tài khoản cộng tác viên, mở vùng trồng cần làm hồ sơ.</li>
+<li>Chọn đúng <b>vụ mùa</b> ở góc trên bên phải.</li>
+<li>Vào tab <span class="k">Hồ sơ</span>, ở ô “Bộ hồ sơ” chọn <b>Hồ sơ vùng trồng NQ36</b>.</li>
+<li>Bấm <span class="k">Xuất hồ sơ</span>, chờ hệ thống tạo file, rồi bấm biểu tượng tải về để lưu file .zip.</li>
+</ol>
+<figure><img src="img/fb01_ho_so_xuat.jpg" alt="Tab Hồ sơ trên FarmBase"><figcaption>FarmBase, tab Hồ sơ: chọn bộ “Hồ sơ vùng trồng NQ36”, bấm Xuất hồ sơ, rồi bấm biểu tượng tải về cạnh tên file .zip.</figcaption></figure>
+<p><b>Lấy file Excel danh sách vùng trồng</b>:</p>
+<ol class="steps">
+<li>Ở trang vùng trồng, bấm nút <span class="k">…</span> ở góc trên bên phải.</li>
+<li>Chọn <b>Xuất file danh sách vùng trồng</b>. Hộp “Mẫu nhập xuất” hiện ra với tên vùng trồng.</li>
+<li>Bấm <span class="k">Tải mẫu</span> để tải file Excel về máy. Không bấm “Nhập mẫu” vì nút đó dùng để đưa dữ liệu ngược lên FarmBase.</li>
+</ol>
+<figure><img src="img/fb02_mau_nhap_xuat.jpg" alt="Hộp Mẫu nhập xuất trên FarmBase"><figcaption>FarmBase, hộp “Mẫu nhập xuất”: bấm Tải mẫu để lấy file Excel danh sách.</figcaption></figure>
+<div class="note"><b>Nên dùng file nào?</b>Có bộ .zip thì dùng bộ .zip (đủ thông tin hộ, tờ/thửa và ảnh vệ tinh). File Excel phù hợp khi vùng chưa xuất được bộ hồ sơ, hoặc khi chỉ cần cập nhật danh sách lô.</div>
+<h3>Bước 1: đưa file vào công cụ</h3>
+<figure><img src="img/01_tab1_nhap.jpg" alt="Tab 1 với các nút nhập dữ liệu"><figcaption>Tab 1. Chọn cách nhập phù hợp với dữ liệu đang có.</figcaption></figure>
+<h3>Cách A: file Excel vùng trồng</h3>
+<ol class="steps">
+<li>Bấm <span class="k">Tải file Excel mẫu</span> nếu chưa có file đúng cột. Mỗi dòng là một lô gồm mã lô, chủ hộ, CCCD, diện tích, số cây, giống, năm trồng, tọa độ, tờ/thửa, cây trồng xen, tỷ lệ xen.</li>
+<li>Bấm <span class="k">Nhập file Excel</span> và chọn file. Công cụ tự nhóm lô theo hộ và theo xã/phường.</li>
+<li>Nhập lại file của cùng vùng thì phần đã điền tay (phiếu khảo sát, ảnh, link nhật ký điện tử) được giữ nguyên. Ảnh lô được ghép lại theo mã lô và tên chủ hộ.</li>
+</ol>
+<h3>Cách B: nguyên bộ hồ sơ MVT dạng .zip</h3>
+<p>Bấm <span class="k">Nhập bộ hồ sơ MVT (.zip)</span> và chọn file nén có cấu trúc như bộ hồ sơ đã lập (ví dụ bộ Eakly). Công cụ đọc:</p>
+<ul>
+<li><b>File “Bộ hồ sơ MVT”</b>: tên tổ chức, mã số thuế, người đại diện, điện thoại, email, địa chỉ, xã, tỉnh, cây trồng, giống, tiêu chuẩn VietGAP, thị trường, sản lượng; bảng GPS và số tờ/thửa (thành danh sách lô); bảng số cây, giống, năm trồng; bảng ngày sinh.</li>
+<li><b>Các file “Tờ khai”</b>: ngày cấp và nơi cấp CCCD, địa chỉ hộ.</li>
+<li><b>Ảnh “Ảnh địa chính Tên - MÃ.jpg”</b>: tự gắn vào Phụ lục 2 đúng lô theo tên chủ hộ và mã lô.</li>
+</ul>
+<div class="note"><b>Mẹo</b>Bộ .zip cho dữ liệu chi tiết hơn Excel và có sẵn ảnh vệ tinh. Nếu một hộ có nhiều lô mà bảng số cây chỉ ghi tổng, số cây được chia theo diện tích từng lô. Hãy rà lại cột số cây sau khi nhập.</div>
+</section>
+
+<section id="bo-sung">
+<h2><span class="n">4</span>Bổ sung thông tin vùng và lô</h2>
+<figure><img src="img/02_du_lieu_bo_sung.jpg" alt="Ô dữ liệu cần bổ sung"><figcaption>Khung “Dữ liệu cần bổ sung” liệt kê những gì còn thiếu. Mục vàng ở đây (chưa có mã số vùng trồng) chỉ khiến hồ sơ in “đang đăng ký”.</figcaption></figure>
+<figure><img src="img/03_thong_tin_vung.jpg" alt="Thông tin vùng trồng"><figcaption>Thông tin tổ chức và vùng trồng. Điền các ô viền đỏ: người đại diện, địa chỉ, tiêu chuẩn, ngày bắt đầu sản xuất…</figcaption></figure>
+<figure><img src="img/04_lo_dat.jpg" alt="Bảng lô đất"><figcaption>Bảng nông hộ và lô đất. Sửa trực tiếp trong ô, công cụ tự lưu.</figcaption></figure>
+<div class="warn"><b>Cần kiểm tra kỹ</b>Tọa độ GPS của lô được dùng làm tọa độ bẫy trong nhật ký ISPM 6, còn số cây dùng để tính lượng phân thuốc. Sai ở đây sẽ sai trong mọi file xuất ra.</div>
+</section>
+
+<section id="quy-trinh">
+<h2><span class="n">5</span>Mùa vụ và quy trình canh tác</h2>
+<p>Mỗi xã/phường có quy trình riêng. Xã mới tự nhận quy trình sầu riêng mẫu, hoặc có thể sao chép quy trình từ xã khác.</p>
+<figure><img src="img/05_quy_trinh_dau.jpg" alt="Thiết lập mùa vụ"><figcaption>Đầu tab 2: chọn xã/phường, nhập ngày bắt đầu vụ (thường là ngay sau thu hoạch) và số ngày từng giai đoạn.</figcaption></figure>
+<figure><img src="img/06_cong_viec.jpg" alt="Danh sách công việc"><figcaption>Công việc theo giai đoạn: ngày bắt đầu, chu kỳ lặp, người làm, vật tư dùng, tên tiếng Trung.</figcaption></figure>
+<figure><img src="img/07_vat_tu.jpg" alt="Danh mục vật tư"><figcaption>Danh mục phân bón và thuốc BVTV: hoạt chất, liều lượng, thời gian cách ly (PHI), tên tiếng Trung.</figcaption></figure>
+<figure><img src="img/08_kiem_tra_quy_trinh.jpg" alt="Kiểm tra quy trình"><figcaption>Kết quả tự kiểm tra quy trình: báo dòng thiếu tiếng Trung, thuốc thiếu hoạt chất hoặc PHI…</figcaption></figure>
+<ul>
+<li>Thêm dòng mới xong, bấm <span class="k">Dịch các ô tiếng Trung còn trống</span> rồi đọc lại bản dịch.</li>
+<li>Phần “Sinh vật gây hại” gồm danh sách SVGH cần theo dõi, thuốc mặc định và diễn biến mẫu. Diễn biến mẫu chỉ là kế hoạch, không phải kết quả.</li>
+</ul>
+</section>
+
+<section id="quy-trinh-excel">
+<h2><span class="n">6</span>Quy trình riêng của doanh nghiệp (mẫu Excel)</h2>
+<p>Dùng khi doanh nghiệp có giai đoạn, phân thuốc hoặc sâu bệnh khác quy trình mẫu.</p>
+<ol class="steps">
+<li>Ở tab 2, chọn xã/phường rồi bấm <span class="k">Tải quy trình ra Excel (mẫu để cập nhật)</span>. File có các sheet: <i>Huong dan, Mua vu, Giai doan, Vat tu, Cong viec, Sau benh, Dien bien mau, Bay</i>.</li>
+<li>Sửa trong Excel. Mỗi giai đoạn, vật tư, sâu bệnh có mã (<b>GDxx, VTxx, SBxx</b>). Sheet Công việc và Sâu bệnh tham chiếu bằng mã hoặc đúng tên.</li>
+<li>Bấm <span class="k">Nhập quy trình từ Excel</span>. Công cụ kiểm tra và hiện báo cáo: <span class="r">lỗi</span> (mã không tồn tại, thiếu ngày, thiếu tên) thì không nhập; <span class="y">cảnh báo</span> (thiếu tiếng Trung, thiếu PHI) vẫn nhập được.</li>
+<li>Kiểm tra lại tab 2, rồi sang tab 3 xuất hồ sơ theo quy trình mới.</li>
+</ol>
+<div class="note"><b>Nếu doanh nghiệp đã có file quy trình riêng</b>Gửi file đó cho Claude để chuyển sang đúng mẫu trên, sau đó nhập vào công cụ.</div>
+</section>
+
+<section id="xuat">
+<h2><span class="n">7</span>Xuất hồ sơ: chọn vụ, lịch từng lô, vật tư hộ</h2>
+<figure><img src="img/09_chon_vung_vu.jpg" alt="Chọn vùng và vụ"><figcaption>Bước 1: chọn vùng, vụ và khoảng ngày cần xuất. Có thể nhập ngày kết thúc vụ để công cụ tự tính ngược ngày đầu vụ.</figcaption></figure>
+<figure><img src="img/11_lich_tung_lo.jpg" alt="Ngày ra hoa, thu hoạch từng lô"><figcaption>Bước 2: ngày ra hoa và thu hoạch thực tế của từng lô. Lịch công việc tự dịch theo các mốc này.</figcaption></figure>
+<figure><img src="img/12_vat_tu_ho.jpg" alt="Vật tư hộ đã mua"><figcaption>Bước 3: vật tư hộ đã mua (tên, số lượng, ngày, nơi mua). Nhật ký phân thuốc dùng đúng các vật tư này.</figcaption></figure>
+<figure><img src="img/18_xem_chinh_lo.jpg" alt="Xem và chỉnh từng lô"><figcaption>“Xem và chỉnh từng lô”: sửa ngày, ghi chú, mức gây hại, hoặc tích “Bỏ” cho việc không làm. Thay đổi áp dụng cho cả 5 nhật ký.</figcaption></figure>
+</section>
+
+<section id="kiem-tra">
+<h2><span class="n">8</span>Nhập kết quả kiểm tra sâu bệnh thực tế</h2>
+<figure><img src="img/13_ket_qua_kiem_tra.jpg" alt="Kết quả kiểm tra sâu bệnh"><figcaption>Mỗi dòng là một lần kiểm tra định kỳ của lô. Dòng chữ mờ ghi “mẫu – chưa nhập” là kế hoạch, chưa phải kết quả.</figcaption></figure>
+<ol class="steps">
+<li>Chọn lô, rồi với từng lần kiểm tra chọn mức gây hại thấy ngoài vườn cho từng SVGH (“+phun” nếu có phun thuốc).</li>
+<li>Ghi đúng số ruồi đục quả đếm được ở bẫy, kể cả khi bằng 0.</li>
+<li>Chỉ cần chọn một ô hoặc nhập số ruồi là dòng đó thành kết quả thực tế.</li>
+</ol>
+<div class="must"><b>Nguyên tắc trung thực</b>Kết quả bẫy và sâu bệnh chỉ được lấy từ quan sát thực tế ngoài vườn do người dùng nhập. Lô còn lần kiểm tra chưa nhập thì hồ sơ in chữ <b>BẢN NHÁP</b> và ô số ruồi để trống. Công cụ không tự sinh số liệu kiểm tra.</div>
+</section>
+
+<section id="questionnaire">
+<h2><span class="n">9</span>Phiếu khảo sát Questionnaire (file 06)</h2>
+<p>Cấu trúc phiếu dựa theo 2 mẫu đã được duyệt (Hòa Bình, Chánh Thu): 7 mục, chữ ký, Phụ lục 1, Phụ lục 2.</p>
+<figure><img src="img/10_bo_ho_so.jpg" alt="Thẻ bộ hồ sơ"><figcaption>Thẻ bộ hồ sơ ở tab 3: danh sách 6 file, nút tải BẢN NHÁP, nút tải tệp chính thức và danh sách mục còn thiếu.</figcaption></figure>
+<ol class="steps">
+<li><b>Ngôn ngữ</b>: mặc định Trung / Việt. Chọn Anh / Việt nếu cần nộp bản tiếng Anh.</li>
+<li><b>Danh sách vấn đề</b> ở đầu thẻ: mục <span class="r">đỏ</span> phải điền, mục <span class="y">vàng</span> nên điền (thiếu nhóm ảnh, thiếu link nhật ký điện tử…).</li>
+<li><b>Các ô của phiếu</b>: phần lớn tự điền từ dữ liệu vùng. Ba ô bắt buộc tự nhập là <span class="r">cơ sở đóng gói</span>, <span class="r">mã cơ sở đóng gói</span> và <span class="r">khoảng cách từ vùng trồng đến cơ sở đóng gói</span>.</li>
+<li>Bấm <span class="k">Dịch</span> để điền phần tiếng Trung (hoặc Anh) còn trống, rồi đọc lại.</li>
+</ol>
+<figure><img src="img/17_phieu_muc_1.jpg" alt="Các ô mục 1 của phiếu"><figcaption>Lưới các ô của phiếu: cột tiếng Việt và cột tiếng Trung. Ô viền đỏ là bắt buộc.</figcaption></figure>
+</section>
+
+<section id="phu-luc">
+<h2><span class="n">10</span>Phụ lục 1 (ảnh, nhật ký điện tử) và Phụ lục 2 (ảnh vệ tinh)</h2>
+<h3>Phụ lục 1: ảnh minh chứng và nhật ký điện tử</h3>
+<figure><img src="img/15_phu_luc_anh.jpg" alt="Khung ảnh Phụ lục 1"><figcaption>6 nhóm ảnh, mỗi nhóm thêm được nhiều ảnh cùng lúc. Mục 7 là link nhật ký điện tử, mã QR tự tạo và hiện xem trước.</figcaption></figure>
+<div class="tbl"><table>
+<tr><th>Nhóm</th><th>Nên chụp</th></tr>
+<tr><td>1. Ảnh vệ tinh vùng trồng</td><td>Toàn vùng, có ranh giới</td></tr>
+<tr><td>2. Ảnh flycam / toàn cảnh</td><td>Vườn nhìn từ trên cao</td></tr>
+<tr><td>3. Kho vật tư</td><td>Kho phân thuốc có biển, kệ, sổ xuất nhập</td></tr>
+<tr><td>4. Thu hoạch</td><td>Hái, phân loại, dụng cụ chứa</td></tr>
+<tr><td>5. Giám sát sinh vật gây hại</td><td>Bẫy, điều tra 5 điểm, ghi chép</td></tr>
+<tr><td>6. Đào tạo</td><td>Buổi tập huấn, danh sách ký tên</td></tr>
+</table></div>
+<p>Ảnh được tự thu nhỏ (cạnh dài tối đa 1600 px) để file Word không quá nặng. Trong phiếu, ảnh xếp 2 ảnh một hàng và đánh số “Hình n.i / 图n.i”.</p>
+<p><b>Mục 7 Nhật ký điện tử</b>: dán link nhật ký điện tử (ví dụ trang truy xuất trên FarmBase). Phiếu sẽ có link bấm được và mã QR. Chưa có link thì phiếu hiện dòng đỏ nhắc bổ sung.</p>
+<h3>Phụ lục 2: ảnh vệ tinh từng lô có lô giới</h3>
+<figure><img src="img/16_phu_luc_2.jpg" alt="Phụ lục 2 ảnh từng lô"><figcaption>Mỗi lô một dòng: thông tin lô bên trái, ảnh vệ tinh bên phải. Thêm hoặc xóa ảnh từng lô, hoặc tải nhiều ảnh một lần.</figcaption></figure>
+<div class="note"><b>Tải nhiều ảnh một lần</b>Đặt tên file ảnh có chứa mã lô, ví dụ <span class="k">DC10-101.jpg</span> hoặc <span class="k">Anh dia chinh Nguyen Van An - DC10-101.jpg</span>, rồi bấm tải hàng loạt. Công cụ tự gắn ảnh vào đúng lô. Ảnh không khớp mã nào sẽ được báo lại.</div>
+</section>
+
+<section id="tai">
+<h2><span class="n">11</span>Tải BẢN NHÁP và tải tệp chính thức</h2>
+<div class="tbl"><table>
+<tr><th>Nút</th><th>Khi nào dùng</th><th>Kết quả</th></tr>
+<tr><td><span class="k">Tải BẢN NHÁP trọn bộ (.zip)</span></td><td>Bất cứ lúc nào, để rà soát, in cho chủ hộ xem</td><td>File có chữ BẢN NHÁP, chỗ thiếu tô đỏ</td></tr>
+<tr><td><span class="k">Tải tệp chính thức (.zip)</span></td><td>Chỉ bấm được khi <b>hết mọi mục đỏ</b></td><td>File sạch, không có chữ BẢN NHÁP</td></tr>
+</table></div>
+<p>Khi nút chính thức còn mờ, ngay bên dưới có danh sách lý do, thường gồm: thông tin vùng hoặc hộ còn thiếu, lô còn lần kiểm tra chưa nhập kết quả, ba ô cơ sở đóng gói của phiếu khảo sát. Xử lý hết danh sách này thì nút sáng lên.</p>
+<figure class="half"><img src="img/19_nhac_truoc_khi_tai.jpg" alt="Hộp nhắc trước khi tải"><figcaption>Hộp nhắc trước khi tải BẢN NHÁP: nhắc các nội dung bôi đỏ cần xem lại.</figcaption></figure>
+<p>Có thể tải riêng từng file bằng các nút trong danh sách file nếu chỉ cần sửa một nhật ký.</p>
+</section>
+
+<section id="mau">
+<h2><span class="n">12</span>Các file xuất ra và trang mẫu</h2>
+<p>Năm nhật ký khớp nhau vì cùng lấy từ một gốc. <b>Nhật ký canh tác</b> là gốc, mỗi công việc, lần kiểm tra bẫy, đợt điều tra, lần phát hiện SVGH là một dòng. Các nhật ký còn lại lọc từ đó, nên ngày, lô, người và vật tư luôn trùng nhau.</p>
+<div class="grid2">
+<figure><img src="img/h01_nhat_ky_canh_tac.jpg" alt="Nhật ký canh tác"><figcaption>01. Nhật ký canh tác: toàn bộ công việc theo ngày và lô.</figcaption></figure>
+<figure><img src="img/h02_nhat_ky_sau_benh.jpg" alt="Nhật ký sâu bệnh"><figcaption>02. Nhật ký sâu bệnh: chỉ các lần có phát hiện, mức gây hại và biện pháp.</figcaption></figure>
+<figure><img src="img/h03_nhat_ky_phan_thuoc.jpg" alt="Nhật ký phân thuốc"><figcaption>03. Nhật ký sử dụng phân bón, thuốc: liều, lượng, hoạt chất, PHI.</figcaption></figure>
+<figure><img src="img/h04_ispm6.jpg" alt="Nhật ký ISPM 6"><figcaption>04. Giám sát theo ISPM 6: lần kiểm tra bẫy (tọa độ, số ruồi) và điều tra 5 điểm.</figcaption></figure>
+<figure><img src="img/h05_ra_vao.jpg" alt="Nhật ký ra vào"><figcaption>05. Nhật ký ra vào vùng trồng: gom theo ngày và người.</figcaption></figure>
+<figure><img src="img/h06_phieu_trang1.jpg" alt="Questionnaire trang 1"><figcaption>06. Questionnaire: trang đầu, song ngữ Trung / Việt.</figcaption></figure>
+<figure><img src="img/h06_phu_luc_1.jpg" alt="Phụ lục 1"><figcaption>06. Phụ lục 1: ảnh theo nhóm, 2 ảnh một hàng.</figcaption></figure>
+<figure><img src="img/h06_nhat_ky_dien_tu.jpg" alt="Mục 7 nhật ký điện tử"><figcaption>06. Phụ lục 1 mục 7: link và mã QR nhật ký điện tử.</figcaption></figure>
+</div>
+<figure><img src="img/h06_phu_luc_2.jpg" alt="Phụ lục 2"><figcaption>06. Phụ lục 2: ảnh vệ tinh từng lô kèm mã lô, chủ hộ, diện tích, số cây, tọa độ, tờ/thửa.</figcaption></figure>
+<p class="muted">Định dạng chung: font Times New Roman, chỉ ghi ngày (không ghi giờ), song ngữ Việt – Trung.</p>
+</section>
+
+<section id="sao-luu">
+<h2><span class="n">13</span>Sao lưu và chuyển máy</h2>
+<figure><img src="img/20_sao_luu.jpg" alt="Tab sao lưu"><figcaption>Tab 4. Tệp sao lưu .json gồm vùng trồng, quy trình các xã/phường và các chỉnh sửa tay.</figcaption></figure>
+<ol class="steps">
+<li>Máy cũ: bấm <span class="k">Tải tệp sao lưu</span>.</li>
+<li>Máy mới: mở công cụ, bấm <span class="k">Khôi phục từ tệp sao lưu</span>, chọn tệp .json. Dữ liệu trùng sẽ bị ghi đè.</li>
+<li>Ảnh không có trong tệp .json. Trên máy mới, nhập lại bộ .zip hoặc tải lại ảnh (ảnh lô đặt tên theo mã lô để tải hàng loạt).</li>
+</ol>
+</section>
+
+<section id="luu-y">
+<h2><span class="n">14</span>Các lưu ý quan trọng</h2>
+<div class="must"><b>1. Chỉ ghi điều đã thực sự xảy ra</b>Kết quả bẫy, mức sâu bệnh, ngày ra hoa, ngày thu hoạch và vật tư phải đúng thực tế ngoài vườn. Quy trình và diễn biến mẫu chỉ là kế hoạch. Hồ sơ còn dùng dữ liệu mẫu luôn ghi BẢN NHÁP và không được nộp như hồ sơ chính thức.</div>
+<div class="must"><b>2. Chủ hộ xác nhận và ký</b>In hồ sơ cho chủ hộ đọc lại, xác nhận đúng việc đã làm rồi mới ký.</div>
+<div class="warn"><b>3. Thuốc BVTV</b>Chỉ dùng thuốc có trong danh mục được phép sử dụng tại Việt Nam và không bị cấm ở thị trường nhập khẩu. Ghi đủ hoạt chất, liều lượng và thời gian cách ly (PHI). Ngày thu hoạch phải sau lần phun cuối ít nhất bằng PHI.</div>
+<div class="warn"><b>4. Tiếng Trung</b>Bản dịch tự động cần được người biết tiếng Trung đọc lại, nhất là tên sâu bệnh, tên thuốc và các ô tự nhập.</div>
+<div class="warn"><b>5. Thông tin cơ sở đóng gói</b>Tên, mã cơ sở đóng gói và khoảng cách phải khớp với hồ sơ cơ sở đóng gói đã đăng ký.</div>
+<div class="note"><b>6. Dữ liệu theo từng trình duyệt</b>Dữ liệu nằm trên máy đang dùng. Sao lưu sau mỗi buổi, giữ ảnh gốc, không xóa dữ liệu trình duyệt khi chưa sao lưu.</div>
+<div class="note"><b>7. Bảo mật thông tin nông hộ</b>Hồ sơ có CCCD, ngày sinh, địa chỉ của nông hộ. Chỉ gửi tệp sao lưu và file xuất cho người có trách nhiệm.</div>
+<a class="top" href="#muc-luc">↑ Về mục lục</a>
+</section>
+</div>
+</body>
+</html>

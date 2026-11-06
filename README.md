@@ -5,6 +5,10 @@ Công cụ chạy trên trình duyệt, không cần cài đặt, để lập b�
 - 5 nhật ký song ngữ Việt – Trung (canh tác, sâu bệnh, phân thuốc, bẫy/điều tra, ra vào vườn).
 - 06 Bảng câu hỏi vùng trồng (种植场调查表) theo cấu trúc các hồ sơ đã được duyệt, kèm Phụ lục 1 (ảnh minh họa, nhật ký điện tử có mã QR) và Phụ lục 2 (ảnh vệ tinh từng lô có ranh giới lô).
 
+## Tra cứu mã số vùng trồng, cơ sở đóng gói
+
+Trang [tra-cuu-ma-so/](tra-cuu-ma-so/) tra cứu mã vùng trồng và mã cơ sở đóng gói xuất khẩu Trung Quốc, đối chiếu giữa Chinaport (GACC), txng.mae và ppd.gov.vn. Xem [hướng dẫn](tra-cuu-ma-so/README.md).
+
 ## Cách dùng
 
 1. Mở trang công cụ (GitHub Pages của repo này).

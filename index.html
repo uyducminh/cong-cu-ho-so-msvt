@@ -1081,6 +1081,30 @@ function catalogDose(p) {
 }
 function amountOf(p, lot) { const k = num(p.perTree); if (!(k > 0) || !(lot.soCay > 0)) return "–"; const v = Math.round(k * lot.soCay * 100) / 100; return `${String(v).replace(".", ",")} ${p.donVi || ""}`.trim(); }
 
+// ---- cap on farm-diary rows per lot: keep every input use, harvest and pest record, at least one row per stage, then spread the rest across stages
+const nkMandatory = e => e.prods.length > 0 || e.nk === "thu" || (e.pests && e.pests.length > 0);
+function slimPlan(plan, from, to, max) {
+  const out = { omit: new Set(), over: [], before: 0, after: 0, maxLot: 0, on: false };
+  max = Math.round(num(max)); if (!(max > 0)) return out;
+  out.on = true;
+  const ev = plan.active.filter(e => e.d >= from && e.d <= to && e.d >= plan.sStart && e.d <= plan.sEnd);
+  for (const l of plan.lots) {
+    const L = ev.filter(e => e.lot === l.k); out.before += L.length;
+    const keep = new Set(L.filter(nkMandatory));
+    const stages = [...new Set(L.map(e => e.stage.id))];
+    const rank = e => e.kind === "task" ? 0 : e.kind === "mon" && e.entered ? 1 : 2;
+    const opt = {}; for (const s of stages) opt[s] = L.filter(e => e.stage.id === s && !keep.has(e)).sort((a, b) => rank(a) - rank(b) || a.d - b.d);
+    // every stage appears at least once
+    for (const s of stages) if (!L.some(e => keep.has(e) && e.stage.id === s) && opt[s].length) keep.add(opt[s].shift());
+    // fill the remaining rows round-robin over stages so no stage is crowded out
+    let left = max - keep.size, moved = true;
+    while (left > 0 && moved) { moved = false; for (const s of stages) { if (left <= 0) break; const e = opt[s].shift(); if (e) { keep.add(e); left--; moved = true; } } }
+    for (const e of L) if (!keep.has(e)) out.omit.add(e);
+    if (keep.size > max) out.over.push([l.ma, keep.size]);
+    out.after += keep.size; out.maxLot = Math.max(out.maxLot, keep.size);
+  }
+  return out;
+}
 let FORCE_DRAFT = false; // set while exporting when required (red) items are still missing
 function buildDocs(r, cfg, plan, from, to) {
   const ev = plan.active.filter(e => e.d >= from && e.d <= to && e.d >= plan.sStart && e.d <= plan.sEnd);
@@ -1095,6 +1119,7 @@ function buildDocs(r, cfg, plan, from, to) {
     tinhShort: (r.info.tinh || "").replace(/^Tỉnh\s+|^Thành phố\s+/i, "") || "………",
   };
   const byLot = k => ev.filter(e => e.lot === k);
+  const SL = slimPlan(plan, from, to, r.maxNk);
   const draftLots = new Set(ev.filter(e => e.kind === "mon" && !e.entered).map(e => e.lot));
   ctx.draftLots = draftLots.size; ctx.draft = draftLots.size || (FORCE_DRAFT ? 1 : 0);
   lots.forEach(l => { l.draftMark = draftLots.has(l.k); });
@@ -1110,9 +1135,10 @@ function buildDocs(r, cfg, plan, from, to) {
     const H = [["STT", "序号"], ["Ngày", "日期"], ["Giai đoạn sinh trưởng", "生长阶段"], ["Nội dung công việc", "作业内容"], ["SVGH phát hiện", "发现的有害生物"], ["Biện pháp xử lý", "处理措施"],
       ["Tên phân bón / thuốc BVTV", "肥料/农药名称"], ["Hoạt chất", "有效成分"], ["Liều lượng", "用量"], ["Cách ly (ngày)", "安全间隔期(天)"], ["Người thực hiện", "执行人"], ["Ghi chú", "备注"]];
     const W = [0.8, 1.7, 1.9, 3.9, 2.6, 3.4, 2.1, 1.9, 1.9, 1.1, 1.8, 3.2];
+    if (SL.on && SL.omit.size) ch.push(para("Nhật ký ghi các công việc chính của từng giai đoạn: mọi lần sử dụng phân bón, thuốc BVTV, phát hiện sinh vật gây hại và thu hoạch được ghi đầy đủ; các lần kiểm tra định kỳ ghi đầy đủ trong hồ sơ giám sát ISPM 6. / 本记录记载各生长阶段的主要作业：所有肥料、农药使用、有害生物发现及采收均完整记录；定期检查详见ISPM 6监测记录。", { s: 9, i: true, after: 4 }));
     lots.forEach((l, i) => {
       ch.push(...lotHeader(i + 1, l, true));
-      const rows = byLot(l.k).map((e, k) => [String(k + 1), fmt(e.d), bi(e.stage.vn, e.stage.cn), bi(e.vn, e.cn),
+      const rows = byLot(l.k).filter(e => !SL.omit.has(e)).map((e, k) => [String(k + 1), fmt(e.d), bi(e.stage.vn, e.stage.cn), bi(e.vn, e.cn),
         e.pests.length ? e.pests.map(x => pestLine(x.v, x.muc)) : (e.kind === "task" ? "–" : "Không phát hiện / 未发现"),
         e.pests.length ? e.pests.map(x => x.meas ? `${x.meas[0]} / ${x.meas[1]}` : "") : "–",
         e.prods.length ? e.prods.map(x => x.p.ten) : "–", e.prods.length ? e.prods.map(x => x.p.hoatChat) : "–", e.prods.length ? e.prods.map(x => doseBi(x.dose)) : "–",
@@ -2176,8 +2202,10 @@ function buildFarmbase(r, cfg, plan, from, to, base, mode) {
     return { ten: b ? b.ten : (lot.chu || own.ten || ""), sdt: String((b && b.sdt) || lot.sdt || own.sdt || "").replace(/\D/g, "").replace(/^84/, "0"), lo: !base || byLot.get(norm(lot.ma)) ? lot.ma : "" };
   };
   const out = [];
+  const SL = slimPlan(plan, from, to, r.maxNk);
   for (const e of plan.active) {
     if (e.d < start || e.d > to) continue;
+    if (SL.omit.has(e)) continue;
     if (e.d > end) { rep.skipFuture++; continue; }
     if (e.kind === "pest") continue; // process template detections are not field records
     if (e.kind === "mon" && !e.entered) { rep.skipMon++; continue; }
@@ -2274,7 +2302,7 @@ function renderXuat() {
     h("div", { class: "timeline" }, plan.stages.map(s => h("span", {}, h("b", {}, s.vn), " ", `${fmt(s.start)} – ${fmt(s.end)}`)))));
   const inR = plan.active.filter(e => e.d >= X.from && e.d <= X.to && e.d >= plan.sStart && e.d <= plan.sEnd);
   const cnt = {
-    ct: inR.length, sb: inR.reduce((a, e) => a + e.pests.length, 0),
+    ct: inR.length - slimPlan(plan, X.from, X.to, r.maxNk).omit.size, sb: inR.reduce((a, e) => a + e.pests.length, 0),
     pt: inR.reduce((a, e) => a + e.prods.length, 0), bay: inR.filter(e => e.kind === "mon").length * cfg.traps.length, dt: inR.filter(e => e.survey).length,
     rv: new Set(inR.map(e => e.lot + e.d + e.person)).size,
   };
@@ -2319,6 +2347,13 @@ function renderXuat() {
   el.append(h("div", { class: "card" }, h("h2", {}, "Bộ hồ sơ sẽ xuất"),
     h("div", { class: "stat" }, h("div", {}, h("b", {}, cnt.ct), "dòng nhật ký canh tác"), h("div", {}, h("b", {}, cnt.sb), "lần ghi sâu bệnh"), h("div", {}, h("b", {}, cnt.pt), "lượt dùng phân thuốc"),
       h("div", {}, h("b", {}, cnt.bay), "lượt kiểm tra bẫy"), h("div", {}, h("b", {}, cnt.dt), "đợt điều tra 5 điểm"), h("div", {}, h("b", {}, cnt.rv), "lượt ra vào")),
+    (() => { const SLx = slimPlan(plan, X.from, X.to, r.maxNk), nSt = plan.stages.length;
+      const inp = h("input", { type: "number", min: 1, step: 1, value: r.maxNk || "", placeholder: "ghi đủ", style: "width:110px" });
+      inp.addEventListener("change", () => { const v = Math.round(num(inp.value)); r.maxNk = v > 0 ? v : ""; persist("regions", r.id); renderXuat(); });
+      return h("div", { style: "margin-top:10px;padding:10px 12px;border:1px solid var(--line, #dde3dc);border-radius:8px" }, h("div", { class: "row" }, h("label", { class: "f" }, "Số dòng nhật ký canh tác tối đa mỗi lô (để trống = ghi đủ)", inp)),
+        h("p", { class: "muted", style: "margin:6px 0 0" }, `Khi đặt giới hạn, nhật ký canh tác chỉ ghi các công việc chính: luôn giữ mọi lần dùng phân bón, thuốc BVTV, phát hiện sâu bệnh và thu hoạch; mỗi giai đoạn có ít nhất một dòng (vụ này có ${nSt} giai đoạn); phần còn lại chia đều cho các giai đoạn. Ngày và nội dung không đổi, chỉ bớt các việc chăm sóc thường ngày. Hồ sơ ISPM 6 vẫn ghi đủ các lần kiểm tra định kỳ; nhật ký sâu bệnh, phân thuốc không đổi.`),
+        SLx.on ? h("div", { class: "msg " + (SLx.over.length ? "warn" : "ok") }, `Nhật ký canh tác: ${SLx.after} dòng (bớt ${SLx.omit.size} trên ${SLx.before}), lô nhiều nhất ${SLx.maxLot} dòng.` + (SLx.over.length ? ` ${SLx.over.length} lô vẫn vượt ${r.maxNk} dòng vì số lần dùng phân thuốc, sâu bệnh, thu hoạch bắt buộc phải ghi (VD ${SLx.over.slice(0, 3).map(x => `${x[0]}: ${x[1]}`).join(", ")}). Muốn ít hơn thì phải giảm số lần bón, phun trong quy trình.` : "")) : null,
+        r.maxNk && r.maxNk < nSt ? h("div", { class: "msg warn" }, `Giới hạn ${r.maxNk} dòng nhỏ hơn số giai đoạn (${nSt}); mỗi giai đoạn vẫn được giữ một dòng.`) : null); })(),
     h("h3", {}, "Kiểm tra trước khi xuất"),
     issues.length ? issues.map(([t, m]) => h("div", { class: "msg " + t }, m)) : h("div", { class: "msg ok" }, "Không có lỗi. Năm nhật ký lấy cùng dữ liệu nên khớp ngày, lô, người và vật tư."),
     nErr ? h("p", { class: "muted" }, `Còn ${nErr} lỗi đỏ: vẫn xuất được để xem thử, nhưng nên sửa trước khi nộp.`) : null,

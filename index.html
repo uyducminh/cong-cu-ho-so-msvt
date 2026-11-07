@@ -254,6 +254,109 @@ function defaultConfig(xa) {
   };
 }
 
+/* ============================================================ process template: Buôn Hồ (HTX Đoàn Kết, vụ 11–10) */
+// Lấy từ nhật ký canh tác mẫu của HTX Đoàn Kết Buôn Hồ (vụ 11/2025 – 10/2026): 9 giai đoạn theo FarmBase, thu hoạch tháng 9–10.
+function buonHoConfig(xa) {
+  const st = [["b1", "Sau thu hoạch", "采后期", 40], ["b2", "Phục hồi cây", "恢复树势期", 29], ["b3", "Chăm cơi đọt", "养梢期", 36],
+    ["b4", "Làm bông", "催花期", 25], ["b5", "Dưỡng bông", "养花期", 46], ["b6", "Xổ nhụy/đậu trái", "开花授粉/坐果期", 25, true],
+    ["b7", "Dưỡng trái non", "幼果期", 53], ["b8", "Dưỡng trái/trái lớn", "果实膨大期", 49], ["b9", "Trái già/thu hoạch", "成熟采收期", 62]].map(([id, vn, cn, days, hoa]) => ({ id, vn, cn, days, hoa: !!hoa }));
+  // [id, tên (theo danh mục FarmBase), hoạt chất, loại, liều, kg/cây, đơn vị, cách ly, nồng độ /100 lít, đơn vị nồng độ]
+  const pr = [
+    ["q_coc", "Coc 85", "Copper Oxychloride 85%", "benh", "Theo hướng dẫn nhãn", "", "", "", "", ""],
+    ["q_humic", "Humic", "", "phan", "", 0.7, "kg", "", "", ""],
+    ["q_agri", "Agrifor + Mantalaxy", "", "benh", "Theo hướng dẫn nhãn", "", "", "", "", ""],
+    ["q_npk20", "NPK 20-10-10", "N 20%, P2O5 10%, K2O 10%", "phan", "", 1, "kg", "", "", ""],
+    ["q_hcn", "Phân hữu cơ (nở)", "Chất hữu cơ", "huuco", "", 3, "kg", "", "", ""],
+    ["q_yapoko", "Yapoko 250SC + PBL 30-10-10", "Thiamethoxam 140 g/lít", "sau", "", "", "", 10, 70, "ml"],
+    ["q_superrex", "Superrex 73EC + 30-10-10 + Amino", "Propargite 730 g/lít", "sau", "", "", "", 10, 100, "ml"],
+    ["q_movento", "Movento 150 OD + 20-20-20 + Amino", "Spirotetramat 150 g/lít", "sau", "", "", "", 10, 100, "ml"],
+    ["q_lan", "Lân Văn Điển", "P2O5", "phan", "", 4, "kg", "", "", ""],
+    ["q_hnpk", "Humic + NPK 20-10-10", "Humic; N 20%, P2O5 10%, K2O 10%", "phan", "", 1, "kg", "", "", ""],
+    ["q_yapoko2", "Yapoko 250SC + Amino RB + Ca-Bo + 20-20-20 + Compi", "Thiamethoxam 140 g/lít", "sau", "", "", "", 10, 70, "ml"],
+    ["q_antracol", "Antracol 70WP (gốc kẽm)", "Propineb 70%", "benh", "", "", "", 7, 250, "g"],
+    ["q_superrex2", "Superrex 73EC + Amino RB + Ca-Bo + 20-20-20", "Propargite 730 g/lít", "sau", "", "", "", 10, 120, "ml"],
+    ["q_npk12", "NPK 12-11-18 + trung vi lượng", "N 12%, P2O5 11%, K2O 18% + TE", "phan", "", 1.5, "kg", "", "", ""],
+    ["q_actimax", "Actimax 50WG + RB + Ca-Bo", "Emamectin benzoate 50 g/kg", "sau", "", "", "", 7, 50, "g"],
+    ["q_yapoko3", "Yapoko 250SC + RB + Ca-Bo", "Thiamethoxam 140 g/lít", "sau", "", "", "", 10, 50, "ml"],
+    ["q_orande", "Orande 280SC", "", "benh", "", "", "", 7, 100, "ml"],
+    ["q_movento2", "Movento 150 OD + Amino RB + Ca-Bo + PBL 20-20-20", "Spirotetramat 150 g/lít", "sau", "", "", "", 10, 100, "ml"],
+    ["q_qlam", "Phân vi sinh Quế Lâm", "Vi sinh vật có ích, chất hữu cơ", "huuco", "Theo tình trạng cây", "", "", "", "", ""],
+    ["q_actimax2", "Actimax 50WG + Amino RB + Ca-Bo + PBL 20-20-20", "Emamectin benzoate 50 g/kg", "sau", "", "", "", 7, 50, "g"],
+  ].map(([id, ten, hoatChat, loai, lieu, perTree, donVi, phi, nd, ndDv]) => ({ id, ten, hoatChat, loai, lieu, perTree, donVi, phi, nd, ndDv, dk: false }));
+  const T = (stage, offset, kind, vn, cn, prod = "", dose = "") => ({ id: uid(), stage, offset, repeat: 0, kind, vn, cn, prod, dose });
+  const tasks = [
+    T("b1", 21, "cham", "Dọn vườn, tỉa cành; thu gom cành sâu, bệnh để tiêu hủy", "清园修剪；收集病虫枝集中销毁"),
+    T("b1", 34, "phun", "Phun thuốc rửa vườn", "喷药清园", "q_coc"),
+    T("b2", 1, "bon", "Bón Humic, tưới nước", "施腐殖酸，浇水", "q_humic"),
+    T("b2", 11, "phun", "Kiểm tra và xử lý nấm gốc (tưới gốc)", "检查并处理根部真菌病害（灌根）", "q_agri"),
+    T("b2", 18, "bon", "Bón phân phục hồi, tưới nước", "施恢复肥，浇水", "q_npk20"),
+    T("b2", 25, "cham", "Tưới nước, kiểm tra tán cây", "浇水，检查树冠"),
+    T("b2", 27, "bon", "Bón phân hữu cơ, tưới nước", "施有机肥，浇水", "q_hcn"),
+    T("b3", 0, "cham", "Kiểm tra cơi đọt, lá non và tình trạng sâu hại", "检查新梢、嫩叶及虫害情况"),
+    T("b3", 5, "phun", "Phun thuốc + phân bón qua lá", "喷施农药+叶面肥", "q_yapoko", "140 ml/phuy 200 lít"),
+    T("b3", 12, "bon", "Bón phân nuôi cơi đọt, tưới nước", "施养梢肥，浇水", "q_npk20", "1,5 kg/gốc"),
+    T("b3", 16, "cham", "Tỉa chồi vượt, kiểm tra lá non", "修剪徒长枝，检查嫩叶"),
+    T("b3", 18, "cham", "Kiểm tra cơi đọt, lá non và tình trạng sâu hại", "检查新梢、嫩叶及虫害情况"),
+    T("b3", 20, "phun", "Phun thuốc + phân bón qua lá", "喷施农药+叶面肥", "q_superrex", "200 ml/phuy 200 lít"),
+    T("b3", 27, "cham", "Tưới nước", "浇水"),
+    T("b3", 29, "phun", "Phun thuốc + phân bón qua lá", "喷施农药+叶面肥", "q_movento", "200 ml/phuy 200 lít"),
+    T("b4", 0, "bon", "Bón phân làm bông, tưới nước", "施促花肥，浇水", "q_lan", "3-5 kg/gốc"),
+    T("b4", 6, "cham", "Tưới nước lần cuối, tiến hành cắt nước làm bông", "最后一次浇水，开始控水催花"),
+    T("b4", 16, "cham", "Kiểm tra mầm hoa và độ ẩm vườn", "检查花芽及园内湿度"),
+    T("b4", 23, "cham", "Kiểm tra cành mang hoa, vệ sinh tán", "检查结花枝，清理树冠"),
+    T("b5", 0, "cham", "Bông 2-3 cm, tưới nhẹ nước", "花蕾2-3厘米，轻浇水"),
+    T("b5", 6, "bon", "Bón phân dưỡng bông, kéo đọt", "施养花肥，促梢", "q_hnpk"),
+    T("b5", 7, "cham", "Kiểm tra chùm bông, độ ẩm và cơi đọt", "检查花序、湿度及新梢"),
+    T("b5", 13, "cham", "Kiểm tra chùm bông và độ thông thoáng tán", "检查花序及树冠通风"),
+    T("b5", 15, "phun", "Phun thuốc + phân bón qua lá", "喷施农药+叶面肥", "q_yapoko2", "Thuốc 140 ml/phuy 200 lít; Amino 250 ml/phuy; Canxi Bo 250 ml/phuy"),
+    T("b5", 22, "cham", "Tưới nước, kiểm tra bông", "浇水，检查花蕾"),
+    T("b5", 23, "phun", "Kiểm tra và xử lý nấm", "检查并处理真菌病害", "q_antracol", "0,5 kg/200 lít"),
+    T("b5", 28, "cham", "Kiểm tra rầy, sâu và nhện đỏ", "检查叶蝉、害虫及红蜘蛛"),
+    T("b5", 34, "phun", "Phun thuốc + phân bón qua lá", "喷施农药+叶面肥", "q_superrex2", "Thuốc 240 ml/phuy 200 lít; Amino 250 ml/phuy; Canxi Bo 250 ml/phuy"),
+    T("b5", 44, "phun", "Tưới nước + kiểm tra, xử lý nấm gốc", "浇水+检查处理根部真菌病害", "q_agri"),
+    T("b6", 0, "cham", "Kiểm tra bông trước xổ nhụy", "开花前检查花蕾"),
+    T("b6", 5, "bon", "Bón phân trước xổ nhụy", "开花前施肥", "q_npk12"),
+    T("b6", 17, "cham", "Xổ nhụy xong, tưới nước", "开花结束后浇水"),
+    T("b7", 7, "phun", "Phun thuốc + phân bón dưỡng trái non", "喷施农药+叶面肥养幼果", "q_actimax", "Thuốc 100 g/phuy 200 lít; rong biển 250 ml/phuy; Canxi Bo 250 ml/phuy"),
+    T("b7", 18, "phun", "Kiểm tra và xử lý nấm gốc (tưới gốc)", "检查并处理根部真菌病害（灌根）", "q_agri"),
+    T("b7", 22, "cham", "Kiểm tra trái non, cuống trái và tình trạng sau tỉa", "检查幼果、果柄及疏果后情况"),
+    T("b7", 25, "bon", "Bón phân, tưới nước", "施肥，浇水", "q_npk12", "0,5 kg/gốc"),
+    T("b7", 29, "cham", "Tưới nước", "浇水"),
+    T("b7", 34, "phun", "Phun thuốc + phân bón qua lá", "喷施农药+叶面肥", "q_yapoko3", "Thuốc 100 ml/phuy 200 lít; rong biển 250 ml/phuy; Canxi Bo 250 ml/phuy"),
+    T("b7", 44, "phun", "Kiểm tra và xử lý nấm", "检查并处理真菌病害", "q_antracol", "0,5 kg/200 lít"),
+    T("b7", 48, "cham", "Tưới nước, kiểm tra trái sau tỉa", "浇水，检查疏果后果实"),
+    T("b8", 0, "cham", "Tưới nước, kiểm tra trái", "浇水，检查果实"),
+    T("b8", 6, "phun", "Kiểm tra và xử lý nấm thối trái", "检查并处理果腐病", "q_orande", "200 ml/phuy 200 lít"),
+    T("b8", 9, "cham", "Kiểm tra cành mang trái, gia cố cành khi cần", "检查结果枝，必要时加固"),
+    T("b8", 14, "phun", "Phun thuốc + phân bón qua lá", "喷施农药+叶面肥", "q_movento2", "200 ml/phuy 200 lít"),
+    T("b8", 20, "cham", "Kiểm tra trái, cành mang trái và thoát nước vườn", "检查果实、结果枝及果园排水"),
+    T("b8", 22, "cham", "Tưới nước", "浇水"),
+    T("b8", 23, "bon", "Bón phân vi sinh, tưới nước", "施微生物肥，浇水", "q_qlam"),
+    T("b8", 30, "cham", "Kiểm tra độ lớn trái, thoát nước vườn", "检查果实大小及果园排水"),
+    T("b8", 33, "phun", "Phun thuốc + phân bón qua lá", "喷施农药+叶面肥", "q_actimax2", "Thuốc 100 g/phuy 200 lít; rong biển 250 ml/phuy; Canxi Bo 250 ml/phuy"),
+    T("b8", 45, "bon", "Bón phân, tưới nước", "施肥，浇水", "q_npk12"),
+    T("b9", 0, "cham", "Ngưng thuốc BVTV và phân bón; theo dõi độ già trái", "停止使用农药和肥料；监测果实成熟度"),
+    // thu hoạch tháng 9–10 theo mùa vụ FarmBase (nhật ký mẫu chưa có dòng thu hoạch)
+    T("b9", 15, "thu", "Thu hoạch trái đạt độ chín, cắt cuống đúng kỹ thuật", "采收达到成熟度的果实，按技术要求剪果柄"),
+    T("b9", 40, "thu", "Phân loại, sơ chế, bảo quản trái nơi thoáng mát; vệ sinh dụng cụ thu hoạch", "果实分级、初加工并于阴凉处存放；清洁采收工具"),
+  ];
+  const base = defaultConfig(xa);
+  const pmap = { v_heo: "q_coc", v_phy: "q_agri", v_rs: "q_movento", v_rsb: "q_movento", v_rst: "q_movento", v_ray: "q_yapoko", v_sdt: "q_actimax", v_sal: "q_actimax", v_sab: "q_actimax", v_tt: "q_antracol", v_rhi: "q_antracol" };
+  const pests = base.pests.map(p => ({ ...p, prod: pmap[p.id] ?? "", ...(p.id === "v_phy" ? { thang: "5-1" } : {}) }));  // nấm gốc xử lý cả đầu mùa khô (tháng 12–1)
+  pests.splice(pests.length - 1, 0,
+    { id: "v_nhen", vn: "Nhện đỏ", cn: "红蜘蛛", sci: "Tetranychidae", viTri: "Lá, đọt non", viTriCn: "叶片、嫩梢", bpHoa: "Phun {P}, theo dõi mật độ", bpHoaCn: "喷施{P}，监测密度", bpTc: "Tưới phun mưa rửa tán, theo dõi mật độ", bpTcCn: "喷水冲洗树冠，监测密度", prod: "q_superrex", thang: "1-5", trap: false },
+    { id: "v_rayx", vn: "Rầy xanh", cn: "小绿叶蝉", sci: "Cicadellidae", viTri: "Đọt non, lá non", viTriCn: "嫩梢、嫩叶", bpHoa: "Phun {P} khi mật độ cao", bpHoaCn: "密度高时喷施{P}", bpTc: "Theo dõi mật độ, chỉ xử lý khi cần", bpTcCn: "监测密度，必要时处理", prod: "q_yapoko", thang: "1-5", trap: false });
+  const O = (pest, stage, offset, muc, xuLy) => ({ id: uid(), pest, stage, offset, muc, xuLy, prod: "", thoiTiet: "", soLuong: "", lots: "" });
+  const occ = [O("v_phy", "b2", 11, "Thấp", "hoa"), O("v_nhen", "b3", 4, "Trung bình", "hoa"), O("v_rayx", "b5", 28, "Thấp", "thucong"), O("v_phy", "b8", 5, "Trung bình", "hoa")];
+  return { ...base, mau: "buonho", xa, seasonStart: "01/11", stages: st, tasks, products: pr, pests, occ };
+}
+const PROC_TEMPLATES = [["daklak", "Quy trình Đắk Lắk", defaultConfig], ["buonho", "Quy trình Buôn Hồ", buonHoConfig]];
+// new commune: Buôn Hồ template for Buôn Hồ, otherwise Đắk Lắk
+function newCommuneConfig(xa, info) {
+  const hay = norm([xa, info && info.diaChi, info && info.ten].filter(Boolean).join(" "));
+  return /buon ho/.test(hay) ? buonHoConfig(xa) : { ...defaultConfig(xa), mau: "daklak" };
+}
+
 /* ============================================================ state & storage */
 const S = { regions: {}, communes: {}, edits: {} };
 const UI = { tab: "vung", rid: null, xa: null, ex: { rid: null, year: null, from: null, to: null, lot: "", kind: "" } };
@@ -372,7 +475,7 @@ function importRegion(data) {
   S.regions[id] = data;
   persist("regions", id);
   const xaKey = slug(data.info.xa || "chua_ro_xa");
-  if (!S.communes[xaKey]) { S.communes[xaKey] = defaultConfig(data.info.xa || "Chưa rõ xã/phường"); persist("communes", xaKey); }
+  if (!S.communes[xaKey]) { S.communes[xaKey] = newCommuneConfig(data.info.xa || "Chưa rõ xã/phường", data.info); persist("communes", xaKey); }
   UI.rid = id; UI.xa = xaKey;
   return id;
 }
@@ -1728,7 +1831,7 @@ function renderVung() {
     const inp = h("input", { value: r.info[k] || "", class: lv(), readonly: k === "maAgribase" });
     inp.addEventListener("change", () => {
       const oldXa = r.info.xa; r.info[k] = inp.value.trim(); inp.className = lv();
-      if (k === "xa" && r.info.xa && r.info.xa !== oldXa) { const key = slug(r.info.xa); if (!S.communes[key]) { S.communes[key] = defaultConfig(r.info.xa); persist("communes", key); } }
+      if (k === "xa" && r.info.xa && r.info.xa !== oldXa) { const key = slug(r.info.xa); if (!S.communes[key]) { S.communes[key] = newCommuneConfig(r.info.xa, r.info); persist("communes", key); } }
       save();
     });
     return h("label", { class: "f" }, lab, inp);
@@ -1761,7 +1864,7 @@ function downloadTemplate() {
 /* ============================================================ tab 2: commune process */
 function communeKeys() {
   const keys = new Set(Object.keys(S.communes));
-  for (const r of Object.values(S.regions)) { const k = slug(r.info.xa || "chua_ro_xa"); if (!S.communes[k]) { S.communes[k] = defaultConfig(r.info.xa || "Chưa rõ xã/phường"); persist("communes", k); } keys.add(k); }
+  for (const r of Object.values(S.regions)) { const k = slug(r.info.xa || "chua_ro_xa"); if (!S.communes[k]) { S.communes[k] = newCommuneConfig(r.info.xa || "Chưa rõ xã/phường", r.info); persist("communes", k); } keys.add(k); }
   return [...keys];
 }
 /* ============================================================ process template (Excel): export the current process, import an edited / converted one */
@@ -1885,7 +1988,7 @@ function reportBox(title, errs, warns, onApply) {
 function renderQuyTrinh() {
   const el = $("#t-quytrinh"); el.replaceChildren();
   const keys = communeKeys();
-  if (!keys.length) { el.append(h("div", { class: "card muted" }, "Nhập một vùng trồng trước; mỗi xã/phường sẽ có một bộ quy trình riêng (mặc định là quy trình sầu riêng mẫu).")); return; }
+  if (!keys.length) { el.append(h("div", { class: "card muted" }, "Nhập một vùng trồng trước; mỗi xã/phường sẽ có một bộ quy trình riêng (mặc định: Quy trình Buôn Hồ cho vùng ở Buôn Hồ, còn lại Quy trình Đắk Lắk).")); return; }
   if (!S.communes[UI.xa]) UI.xa = (UI.rid && S.regions[UI.rid] && slug(S.regions[UI.rid].info.xa || "chua_ro_xa")) || keys[0];
   const cfg = migrateCfg(S.communes[UI.xa]);
   const save = () => { persist("communes", UI.xa); refreshTimeline(); };
@@ -1894,18 +1997,22 @@ function renderQuyTrinh() {
   const copySel = h("select", {}, h("option", { value: "" }, "Sao chép quy trình từ…"), keys.filter(k => k !== UI.xa).map(k => h("option", { value: k }, S.communes[k].xa)));
   copySel.addEventListener("change", async () => { const k = copySel.value; if (!k) return; if (await ask(`Thay quy trình của ${cfg.xa} bằng bản sao từ ${S.communes[k].xa}?`)) { S.communes[UI.xa] = { ...clone(S.communes[k]), xa: cfg.xa }; save(); renderQuyTrinh(); } else copySel.value = ""; });
   el.append(h("div", { class: "card" }, h("div", { class: "row" }, h("b", {}, "Xã/phường:"), sel,
-    h("button", { class: "btn sm", onclick: async () => { if (await ask("Đưa quy trình của xã/phường này về quy trình sầu riêng mẫu?")) { S.communes[UI.xa] = defaultConfig(cfg.xa); save(); renderQuyTrinh(); } } }, "Dùng quy trình sầu riêng mẫu"),
+    (() => { const ts = h("select", {}, h("option", { value: "" }, "Áp dụng mẫu quy trình…"), PROC_TEMPLATES.map(([k, t]) => h("option", { value: k }, t)));
+      ts.addEventListener("change", async () => { const t = PROC_TEMPLATES.find(x => x[0] === ts.value); if (!t) return;
+        if (await ask(`Thay toàn bộ quy trình của ${cfg.xa} (mùa vụ, giai đoạn, công việc, phân thuốc, sâu bệnh) bằng “${t[1]}”? Các chỉnh sửa tay trong quy trình hiện tại sẽ mất; nên tải quy trình ra Excel trước để lưu.`)) { S.communes[UI.xa] = { ...t[2](cfg.xa), mau: t[0] }; save(); renderQuyTrinh(); toast(`Đã áp dụng ${t[1]}.`); } else ts.value = ""; });
+      return ts; })(),
+    h("span", { class: "pill" }, "Mẫu gốc: " + ((PROC_TEMPLATES.find(x => x[0] === (cfg.mau === undefined ? "daklak" : cfg.mau)) || [])[1] || "quy trình riêng (nhập từ Excel)")),
     copySel, h("button", { class: "btn sm", id: "btnTr", onclick: () => translateMissing(cfg) }, "Dịch các ô tiếng Trung còn trống")),
     h("div", { class: "row", style: "margin-top:8px" },
       h("button", { class: "btn sm", onclick: () => saveFile(`Quy_trinh_${slug(cfg.xa)}.xlsx`, new Blob([XLSX.write(exportProcessXlsx(cfg), { bookType: "xlsx", type: "array" })], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })) }, "Tải quy trình ra Excel (mẫu để cập nhật)"),
       h("button", { class: "btn sm pri", onclick: () => { const i = $("#fileQt"); i.onchange = async () => { const f = i.files[0]; i.value = ""; if (!f) return;
         try { const { cfg: nc, errs, warns } = importProcessXlsx(XLSX.read(await f.arrayBuffer(), { type: "array" }), cfg);
           if (await reportBox(`Kiểm tra quy trình từ “${f.name}”: ${nc.stages.length} giai đoạn, ${nc.tasks.length} công việc, ${nc.products.length} vật tư, ${nc.pests.length} sinh vật gây hại`, errs, warns, `Áp dụng cho ${cfg.xa}`)) {
-            S.communes[UI.xa] = { ...nc, xa: cfg.xa }; persist("communes", UI.xa); toast("Đã áp dụng quy trình mới. Các vùng thuộc xã/phường này sẽ dùng quy trình này khi xuất hồ sơ."); renderQuyTrinh(); }
+            S.communes[UI.xa] = { ...nc, xa: cfg.xa, mau: "" }; persist("communes", UI.xa); toast("Đã áp dụng quy trình mới. Các vùng thuộc xã/phường này sẽ dùng quy trình này khi xuất hồ sơ."); renderQuyTrinh(); }
         } catch (e) { console.error(e); toast("Không đọc được file quy trình: " + e.message); } }; i.click(); } }, "Nhập quy trình từ Excel")),
     h("p", { class: "muted", style: "margin:6px 0 0;font-size:12px" }, "Doanh nghiệp có quy trình khác: tải file mẫu (đã điền sẵn quy trình hiện tại), sửa giai đoạn, công việc, phân thuốc, sâu bệnh theo quy trình của họ rồi nhập lại. Công cụ kiểm tra liên kết và báo lỗi trước khi áp dụng."),
     h("p", { class: "muted", style: "margin:8px 0 0" }, "Các vùng trồng thuộc cùng xã/phường dùng chung quy trình này. Ngày của mỗi việc = ngày bắt đầu giai đoạn + số ngày sau bắt đầu; “lặp lại” để trống nếu làm một lần.")));
-  if (cfg.minPhi === undefined) el.append(h("div", { class: "msg warn" }, "Quy trình của xã/phường này tạo từ bản mẫu cũ (lịch vụ lệch khoảng 2 tháng so với Đắk Lắk). Bấm “Dùng quy trình sầu riêng mẫu” để nạp bản mới theo khung Đắk Lắk, hoặc tự chỉnh."));
+  if (cfg.minPhi === undefined) el.append(h("div", { class: "msg warn" }, "Quy trình của xã/phường này tạo từ bản mẫu cũ (lịch vụ lệch khoảng 2 tháng so với Đắk Lắk). Chọn “Áp dụng mẫu quy trình…” → Quy trình Đắk Lắk để nạp bản mới, hoặc tự chỉnh."));
   // season
   const yr = currentSeasonYear(cfg);
   const tl = h("div", { class: "timeline" });
@@ -2118,7 +2225,7 @@ function renderXuat() {
   if (!S.regions[X.rid]) X.rid = S.regions[UI.rid] ? UI.rid : ids[0];
   const r = S.regions[X.rid];
   const xaKey = slug(r.info.xa || "chua_ro_xa");
-  if (!S.communes[xaKey]) { S.communes[xaKey] = defaultConfig(r.info.xa || "Chưa rõ xã/phường"); persist("communes", xaKey); }
+  if (!S.communes[xaKey]) { S.communes[xaKey] = newCommuneConfig(r.info.xa || "Chưa rõ xã/phường", r.info); persist("communes", xaKey); }
   const cfg = migrateCfg(S.communes[xaKey]);
   if (X.year == null || X._rid !== X.rid) { X.year = currentSeasonYear(cfg); X._rid = X.rid; X.from = null; X.to = null; X.lot = ""; X.endD = null; X.prevEnd = null; }
   if (!X.mode) X.mode = "vu";

@@ -11,6 +11,13 @@ Công cụ chạy trên trình duyệt, không cần cài đặt, để lập b�
 2. Nhập file Excel vùng trồng (3 sheet: Vùng trồng, Nông hộ, Lô đất), hoặc nhập nguyên bộ hồ sơ MVT dạng .zip (file Word “Bộ hồ sơ MVT”, tờ khai từng hộ, ảnh địa chính từng lô đặt tên “Ảnh địa chính Họ tên - Mã lô.jpg”). Ảnh địa chính được gán tự động vào Phụ lục 2 của bảng câu hỏi.
 3. Nhập kết quả kiểm tra thực tế, chỉnh phiếu khảo sát, tải ảnh, rồi tải hồ sơ (.docx / .zip).
 
+## Mẫu quy trình có sẵn
+
+- Quy trình Đắk Lắk: vụ từ 01/09, 8 giai đoạn (mặc định).
+- Quy trình Buôn Hồ: vụ từ 01/11, 9 giai đoạn theo nhật ký HTX Đoàn Kết Buôn Hồ; tự áp dụng cho vùng ở Buôn Hồ.
+
+Chọn ở tab 2, ô "Áp dụng mẫu quy trình…".
+
 ## Quy trình riêng của doanh nghiệp
 
 Tab Quy trình > “Tải quy trình ra Excel” cho file mẫu đã điền sẵn quy trình hiện tại (mùa vụ, giai đoạn, vật tư, công việc, sâu bệnh, diễn biến mẫu, bẫy). Sửa theo quy trình của doanh nghiệp rồi “Nhập quy trình từ Excel”: công cụ kiểm tra liên kết mã, báo lỗi và lưu ý trước khi áp dụng cho xã/phường.
